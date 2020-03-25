@@ -23,7 +23,6 @@ Here are some explanations (adapted from [here](https://www.eeoc.gov/laws/))
         Stereotyping or discriminating against someone because of physical characteristics like weight or how they dress.
 - **Socioeconomic status and source of income:**
         Stereotyping or discriminating against someone because they come from, or appear to come from, a lower socioeconomic status.
-</ul>
 
 ### Will you reject any of my work?
 No. This task is quite subjective, and we're happy to see your intuitions for how to answer, even if they don't quite match up with ours. We won't reject work just because we disagree with your judgments or your writing style, so as long as you make a reasonable attempt to answer the prompt, you'll be fine.
