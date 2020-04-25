@@ -25,9 +25,11 @@
     <p>
         <b>Did you write about a stereotype or anti-stereotype in the sentence 1?</b><br>
         <crowd-radio-group>
-            <crowd-radio-button name="yesBias" value="yesBias">Stereotype</crowd-radio-button>
-            <crowd-radio-button name="noBias" value="noBias">Anti-stereotype</crowd-radio-button>
+            <crowd-radio-button name="stereo" value="stereo" id="stereo">Stereotype</crowd-radio-button>
+            <crowd-radio-button name="antiStereo" value="antiStereo" id="antiStereo">Anti-stereotype</crowd-radio-button>
         </crowd-radio-group>
+        <!--<input type="radio" name="stereo" id="yesStereo" value="yesStereo"/> <label for="yesStereo">Stereotype</label>-->
+        <!--<input type="radio" name="stereo" id="noStereo" value="noStereo"/> <label for="noStereo">Anti-stereotype</label><br>-->
     </p>
 
     <p>
@@ -217,3 +219,38 @@
             </p>
     </full-instructions>
 </crowd-form>
+
+
+<script type='text/javascript'>
+document.querySelector('crowd-form').onsubmit = function (e) {
+    if (!validateForm()) {
+        alert("You need to pick \"Stereotype\" or \"Anti-stereotype\".")
+        e.preventDefault();
+    }else if (!validateBias()) {
+        alert("You need to select at least one attribute.")
+        e.preventDefault();
+    }
+}
+
+function validateForm() {
+    if(document.getElementById('stereo').checked) {
+        return true
+    }else if(document.getElementById('antiStereo').checked) {
+        return true
+    }
+}
+
+function validateBias(){
+    let biases = document.getElementsByName('bias_type');
+    let counter = null
+    biases.forEach((bias_type) => {
+        if(bias_type.checked){
+            counter = true
+        }
+    })
+    if (counter == true){
+        return true
+    }
+}
+
+</script>
