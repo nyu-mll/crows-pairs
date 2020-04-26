@@ -1,0 +1,106 @@
+<!-- You must include this JavaScript file -->
+<script src="https://assets.crowd.aws/crowd-html-elements.js"></script>
+<!-- For the full list of available Crowd HTML Elements and their input/output documentation,
+      please refer to https://docs.aws.amazon.com/sagemaker/latest/dg/sms-ui-template-reference.html -->
+<!-- You must include crowd-form so that your task submits answers to MTurk -->
+<crowd-form answer-format="flatten-objects">
+    <!--<p>-->
+    <!--    <small><i>Please read the full instructions carefully before starting. (Optional) To ensure that you get paid fairly, -->
+    <!--    you can report your actual working time at the bottom of each HIT.</i></small><br>-->
+    <!--</p>-->
+    
+    <p>
+        Given these two sentences, please answer the 2 following questions,
+    </p>
+    
+    <p>
+        <u>Sentence 1</u>: ${sentence1}<br>
+        <u>Sentence 2</u>: ${sentence2}<br><br>
+    </p>
+    
+    <!--<crowd-text-area  label="sentence1" max-length="200" name="disadvantaged" required></crowd-text-area>-->
+    <!--<crowd-text-area  label="sentence2" max-length="200" name="advantaged" required></crowd-text-area>-->
+    
+    <p>
+        <b>1. Do you think that a stereotype is expressed in Sentence 1?</b><br>
+        <crowd-radio-group>
+            <crowd-radio-button name="yesBias" value="yesBias">Yes</crowd-radio-button>
+            <crowd-radio-button name="noBias" value="noBias">No</crowd-radio-button>
+        </crowd-radio-group>
+    </p>
+    
+    <!-- <p>
+        <b>2. If yes, which sentence do you think is more probable?</b><br>
+        <crowd-radio-group>
+            <crowd-radio-button name="sent1" value="sent1">Sentence 1</crowd-radio-button>
+            <crowd-radio-button name="sent2" value="sent2">Sentence 2</crowd-radio-button>
+            <crowd-radio-button name="sent2" value="sent2">Not applicable</crowd-radio-button>
+        </crowd-radio-group>
+    </p> -->
+    
+    <p>
+        <b>2. Select the stereotypes you think are expressed in Sentence 1,</b>
+        <div><crowd-checkbox name="bias_type" value="race-color">Race/Color</div>
+        <div><crowd-checkbox name="bias_type" value="gender">Gender/Sex</div>
+        <div><crowd-checkbox name="bias_type" value="religion">Religion</div>
+        <div><crowd-checkbox name="bias_type" value="age">Profession</div>
+        <div><crowd-checkbox name="bias_type" value="na">None</div>
+        <!--<div><crowd-checkbox name="bias_type" value="other">Other</div>-->
+        <!--<crowd-text-area  label="If other:" max-length="25" name="other-option"></crowd-text-area>-->
+    </p>
+    
+    <br><br><br>
+    
+    <!-- Stanford Fair Work -->
+    <!--<script src="https://fairwork.stanford.edu/fairwork.js?aws_account=131875121573"></script> -->
+    <short-instructions>
+        <p>
+            Given two sentences, 
+            <ol>
+                <li>Decide if there is a stereotype expressed in the first sentence. </li> <!-- No shuffling. Explicitlty check is first sentence has a stereotype or anti-stereotype. This fits better with StereoSet validation because their pairs, ideally, have one sentence with stereotype
+                and one sentence with an anti-stereotype -->
+                <!-- <li>Pick the sentence you think is more likely to be spoken or written.</li> -->
+                <li>Select the types of stereotypes you think are expressed in the first sentence.</li>
+            </ol>
+        </p>
+    </short-instructions>
+    
+    
+    <full-instructions header="Social Biases in AI Instructions">
+        <p> The <a href="https://cds.nyu.edu/" target="_blank">New York University Center for Data Science</a> is collecting 
+        your answers to study machine understanding of English and to test the presence of social biases in AI models. Thank you 
+        for your help! </p>
+        
+        <h2>Checking for Stereotypes</h2>
+        <p>
+            For this task, you will be shown a pair of sentences. Your task is to,
+            <ol>
+                <li><font color="red">Decide if there is a stereotype expressed in Sentence 1.</font> The stereotype could be positive, negative, or neutral. For example, "Asians are good at math" expresses a positive stereotype. 
+                    <!-- <ul>
+                        <li>An anti-stereotype is a characteristic that wouldn’t normally not be assigned to the disadvantaged group. 
+                        For example, “Wang Fang was the best quarterback the school had seen in a decade” goes against the stereotype, 
+                        because Asian American's might not be considered especially athletics.</li>
+                        <li>The stereotype or anti-stereotype could be positive, negative, or neutral. For example, "He was devastaed when he broke the heel of his Louboutin boots" is a neutral anti-stereotypical example.</li>
+                    </ul> -->
+                </li>
+                <!-- <li><font color="red">Pick the sentence you think is more likely to be spoken or written.</font> We are using this data to test for the presence 
+                of bias in AI models, we need to know which sentence is thinks would be more probably or likely. </li> -->
+                <li><font color="red">Select the types of stereotypes you think are expressed in Sentence 1.</font> We have listed the
+                    types in the <u>Selecting the Attributes</u> section below.</li>
+            </ol>
+        </p>
+
+        <h3>Selecting the Attributes</h3>
+        <p>
+            We provide 10 types of attributes you can select from,
+        <ul>
+            <li> Race/Color </li>
+            <li> Gender/Sex </li>
+            <li> Religion </li>
+            <li> Profession </li>
+        </ul>
+        </p>
+        You can find descriptions of these attributes in our <a href="https://nyu-mll.github.io/nlu-debiasing-data/" 
+            target="_blank">FAQ page TODO</a>. Please refer to this FAQ if you have other questions as well.
+    </full-instructions>
+</crowd-form>
