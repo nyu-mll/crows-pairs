@@ -30,7 +30,7 @@ def read_data(datadir):
 	anti = [x.strip().split() for x in open(anti_file, 'r').readlines()]
 
 	for i in range(len(pro)):
-		sentid = filename +'_' + pro[i][0]
+		sentid = 'sent_' + pro[i][0]
 		pro_sent = ' '.join(pro[i][1:]).replace('[','').replace(']','')
 		anti_sent = ' '.join(anti[i][1:]).replace('[','').replace(']','')
 
