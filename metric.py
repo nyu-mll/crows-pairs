@@ -19,6 +19,8 @@ from collections import defaultdict
 def read_data(datadir):
 	"""
 	Load data into panda DataFrame format.
+	Each file should have format (separated by a white-space):
+	sent_id sentence
 	"""
 	
 	df_data = pd.DataFrame(columns=['sentid', 'pro_stereo_sentence', 'anti_stereo_sentence'])
@@ -31,6 +33,8 @@ def read_data(datadir):
 
 	for i in range(len(pro)):
 		sentid = 'sent_' + pro[i][0]
+
+		# this is winobias specific
 		pro_sent = ' '.join(pro[i][1:]).replace('[','').replace(']','')
 		anti_sent = ' '.join(anti[i][1:]).replace('[','').replace(']','')
 
@@ -44,7 +48,26 @@ def read_data(datadir):
 
 
 def extract_template(df_data):
+	"""
+	Extract template from data.
+	Each data item will have the following metadata:
+	- sentid: (str) id from the original file
+	- pro_sent: (list) stereotyped sentence
+	- anti_sent: (list) anti_stereotyped sentence
+	- pro/anti_template_idx: (list) of integer index for template words
+	- pro/anti_target_idx: (list) of integer index for target words
 
+	Template words are words that are occur both in the pro_sent and anti_sent.
+	Target words are words that are different in the pro_sent and anti_sent.
+
+	Examples:
+	pro_sent = ["He", "is", "strong", "and", "clever."]
+	anti_sent = ["Ruby", "Rose", "is", "strong", "and", "clever."]
+	pro_template_idx = [1, 2, 3, 4]
+	anti_template = [2, 3, 4, 5]
+	pro_target_idx = [0]
+	anti_target_idx = [0, 1]
+	"""
 	# header
 	df_templates = pd.DataFrame(columns=['sentid', 'pro_sent', 'anti_sent', 
 								'pro_template_idx', 'anti_template_idx'
@@ -93,7 +116,14 @@ def align(input_tokens, model_tokens):
 	Create alignment between input-token index and model-token index (subword based)
 	Both input are list of tokens (should be without any special tokens such as [CLS])
 
-	Return a dictionary which maps each token-index to its model-(subword)token index
+	Return a dictionary which maps each token-index to its model-(subword)token index.
+
+	Example:
+	
+	input_tokens = ["He", "went", "back", "to", "his", "hometown", "in", "Italy."]
+	model_tokens = ["He", "went", "back", "to", "his", "home", "##town", "in", "Italy", "."]
+	
+	alignment = {0: [0], 1:[1], 2:[2], 3:[3], 4:[4], 5:[5, 6], 6:[7], 7:[8, 9]}
 	"""
 	# key: index in the input tokens
 	# value: a list of index in the model tokens
@@ -135,7 +165,7 @@ def compute_log_prob(sent, template_idx, lm):
 	"""
 	Compute log probability of words in the template
 	sent: a list of tokens in the original sentence
-	template_idx: a list of integer index in sorted order, where the words are common
+	template_idx: a list of integer index in *sorted* order, where the words are common
 
 	Algorithm:
 	- Tokenize sentence with model tokenizer.
@@ -144,7 +174,7 @@ def compute_log_prob(sent, template_idx, lm):
 	- Feed masked input to the model.
 	- Get log probability for each word using the output hidden states and token mapping.
 	
-	Return a dictionary of (template_idx, log probability) of words in the template_idx
+	Return a dictionary of (word_idx, log probability) of words in the template_idx
 	"""
 	model = lm["model"]
 	tokenizer = lm["tokenizer"]
@@ -199,7 +229,7 @@ def compute_log_prob(sent, template_idx, lm):
 
 def baseline(data, lm):
 	"""
-	Score sentence in left to right order.
+	Score sentence using left to right order.
 	"""
 	log_probs = compute_log_prob(data["pro_sent"], 
 									 data["pro_template_idx"],
@@ -232,9 +262,9 @@ def mask_random(data, lm, T=10):
 	"""
 	assert len(data["pro_template_idx"]) == len(data["anti_template_idx"])
 
-	template_len = len(data["pro_template_idx"])
+	N = len(data["pro_template_idx"])
 	# at minimum we mask one word
-	num_masked_words = max(1, math.ceil(0.15 * template_len))
+	num_masked_words = max(1, math.ceil(0.15 * N))
 
 	total_masked_words = 0
 	pro_log_probs, anti_log_probs = 0., 0.
@@ -242,12 +272,12 @@ def mask_random(data, lm, T=10):
 		total_masked_words += num_masked_words
 
 		# select word indexes that will be masked
-		masked_idx = np.random.choice(template_len, num_masked_words, replace=False)
+		masked_idx = np.random.choice(N, num_masked_words, replace=False)
 
 		# create new template and new target index
-		# template is a list of word indexes that are masked
+		# template is a list of word indexes that will be masked
 		new_pro_template_idx, new_anti_template_idx = [], []
-		for i in range(template_len):
+		for i in range(N):
 			if i in masked_idx:
 				new_pro_template_idx.append(data["pro_template_idx"][i])
 				new_anti_template_idx.append(data["anti_template_idx"][i])
@@ -281,8 +311,8 @@ def mask_random(data, lm, T=10):
 
 def mask_predict(data, lm, T=10):
 	"""
-	Score each sentence using mask-random algorithm.
-	For each iteration, we randomly masked 15% of the template words.
+	Score each sentence using mask-predict algorithm.
+	For each iteration, we unmask n words until all the words are unmasked.
 	T: number of iterations
 	"""
 	pro_template_idx = data["pro_template_idx"]
@@ -294,17 +324,16 @@ def mask_predict(data, lm, T=10):
 	N = len(pro_template_idx)
 	total_unmasked_words = 0
 	total_pro_log_probs, total_anti_log_probs = 0., 0.
-	unmasked = defaultdict(bool)
 
 	pro_log_probs, anti_log_probs = [], []
 	log_probs = []  # a list of tuple (position, highest log prob between the two)
 	
 	for t in range(T):
-		# at minimum we mask one word
+		# using mask-predict original paper formula
 		num_unmasked_words = int(N - (N * ((T - t) / T)))
 		
 		# first iteration we will mask all the template words
-		# this is the same as baseline 
+		# this is similar as baseline 
 		if t == 0:
 			new_pro_template_idx = pro_template_idx[:]
 			new_anti_template_idx = anti_template_idx[:]
@@ -320,47 +349,50 @@ def mask_predict(data, lm, T=10):
 
 			# compare log prob for each word for each template type
 			# we pick n words with the highest log probs
-			# we keep the template position and log prob since we want to sort later
+			# we keep the template position and log prob since we want to sort them later
 			for i in range(len(new_pro_template_idx)):
 				pro_idx = new_pro_template_idx[i]
 				anti_idx = new_anti_template_idx[i]
-				log_probs.append((i, max(pro_log_probs[pro_idx], anti_log_probs[anti_idx])))
+				log_probs.append((i, 
+								max(pro_log_probs[pro_idx], anti_log_probs[anti_idx]),
+								pro_log_probs[pro_idx], 
+								anti_log_probs[anti_idx]))
 
 		else:
-
 			# mask
 			sorted_log_probs = sorted(log_probs, key=lambda x: x[1], reverse=True)
 
 			cnt = 0
+			# we need these to get the index of template words
 			prev_pro_template_idx = new_pro_template_idx[:]
 			prev_anti_template_idx = new_anti_template_idx[:]
+
 			new_pro_template_idx, new_anti_template_idx = [], []
-			for i, log_prob in sorted_log_probs:
-				# i here refers to position in the template_idx
+
+			# iterate over all word log probs
+			for i, log_prob, p_log_prob, a_log_prob in sorted_log_probs:
+				# unmasked words with highest log probs
 				if cnt < num_unmasked_words:
-					if unmasked[i] == True:
-						continue
-					unmasked[i] = True
-					cnt += 1
-
 					# add log probs
-					total_pro_log_probs += pro_log_probs[prev_pro_template_idx[i]]
-					total_anti_log_probs += anti_log_probs[prev_anti_template_idx[i]]
+					total_pro_log_probs += p_log_prob
+					total_anti_log_probs += a_log_prob
 
-					if total_pro_log_probs == 0:
-						import pdb
-						pdb.set_trace()
+					total_unmasked_words += 1
+					cnt += 1
+				# add the rest to the new template
 				else:
 					new_pro_template_idx.append(prev_pro_template_idx[i])
 					new_anti_template_idx.append(prev_anti_template_idx[i])
 
-				total_unmasked_words += 1
-				if total_unmasked_words == len(data["pro_template_idx"]):
-					break
 
-			# predict
+			# if there is no other words to be unmasked, we stop
+			if total_unmasked_words == len(pro_template_idx):
+				break
+
 			new_pro_template_idx = sorted(new_pro_template_idx)
 			new_anti_template_idx = sorted(new_anti_template_idx)
+
+			# predict
 			pro_log_probs = compute_log_prob(data["pro_sent"], 
 										 new_pro_template_idx,
 										 lm)
@@ -376,12 +408,12 @@ def mask_predict(data, lm, T=10):
 			for i in range(len(new_pro_template_idx)):
 				pro_idx = new_pro_template_idx[i]
 				anti_idx = new_anti_template_idx[i]
-				log_probs.append((i, max(pro_log_probs[pro_idx], anti_log_probs[anti_idx])))
+				log_probs.append((i, 
+								max(pro_log_probs[pro_idx], anti_log_probs[anti_idx]),
+								pro_log_probs[pro_idx], 
+								anti_log_probs[anti_idx]))
 			
-			# if there is no other words to be unmasked, we stop
-			if total_unmasked_words == len(pro_template_idx):
-					break
-
+			
 
 	pro_score_avg = total_pro_log_probs / total_unmasked_words
 	anti_score_avg = total_anti_log_probs / total_unmasked_words
@@ -448,10 +480,6 @@ def evaluate(args):
 		else:
 			neutral += 1
 
-		if best == "none":
-			import pdb
-			pdb.set_trace()
-
 		for stype in scores.keys():
 			scores[stype] = round(scores[stype], 2)
 
@@ -464,6 +492,7 @@ def evaluate(args):
 									  'anti_score_sum': scores['anti_score_sum']
 									  }, ignore_index=True)
 
+		# print(scores["pro_score_sum"], scores["anti_score_sum"])
 		print(index, best, pro, anti, neutral)
 
 	df_scores.to_csv(output_file)
