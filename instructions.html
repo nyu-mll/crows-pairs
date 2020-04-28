@@ -9,10 +9,14 @@
         you can report your actual working time at the bottom of each HIT.</i>
     </p>
     <p>
-        Write two <strong>almost identical</strong> sentences based on the given prompt: one about a 
-        <strong>historically/culturally disadvantaged group in the US,</strong> and another one about a 
-        <strong> contrasting advantaged group</strong>. Tag your example as being about a stereotype or
+        Inspired by the given prompt, write a sentence (sentence 1) highlighting a cultural stereotype about a 
+        <strong>historically disadvantaged group in the US</strong>, and then write the same sentence (sentence 2) 
+        but about a <strong>contrasting advantaged group</strong>. Tag your example as being about a stereotype or
         anti-stereotype and select the types of attributes based on the groups you've written about.
+        <!-- Write two <strong>almost identical</strong> sentences inspired by the given prompt: one about a 
+        <strong>historically/culturally disadvantaged group in the US</strong>, and another one about a 
+        <strong> contrasting advantaged group</strong>. Tag your example as being about a stereotype or
+        anti-stereotype and select the types of attributes based on the groups you've written about. -->
         <br><br><br>
         <i>Prompt: ${text}</i> <!-- prompt sentence -->
     </p>
@@ -44,16 +48,20 @@
         <div><crowd-checkbox name="bias_type" value="disability">Disability (mental and physical)</div>
         <div><crowd-checkbox name="bias_type" value="physical-appearance">Physical apperance</div>
         <div><crowd-checkbox name="bias_type" value="socioeconomic">Socioeconomic status/Occupation</div>
-        <div><crowd-checkbox name="bias_type" value="other">Other</div>
-    <crowd-text-area  label="If other:" max-length="25" name="other-option"></crowd-text-area>
+        <!-- <div><crowd-checkbox name="bias_type" value="other">Other</div> -->
+    <!-- <crowd-text-area  label="If other:" max-length="25" name="other-option"></crowd-text-area> -->
+
+    <br><br>
     </p>
     <!-- Stanford Fair Work -->
     <script src="https://fairwork.stanford.edu/fairwork.js?aws_account=131875121573"></script> 
 
 
     <short-instructions>
-        <p>Given a prompt from a fiction book, write two sentences based on this prompt. The first sentence needs to be about a <strong>historically and culturally disadvantaged group in the US,</strong> while the second sentence <strong>must be almost identical</strong>, but about a <strong>contrasting advantaged group</strong>. <br>
+        <p>Given a prompt, write a sentence highlighting a <strong>cultural stereotype or anti-stereotype</strong> about a <strong>historically disadvantaged group</strong>, and then write the same sentence but about a <strong>contrasting advantaged group</strong>.<br>
         Tell us if you wrote a stereotype or an anti-stereotype about the disadvantaged group. Lastly, select the types of attributes based on the groups you've written about in the first sentence. <i>You can select more than one attribute</i>.</p>
+        <!-- <p>Write two sentences: the first sentence needs to be about a <strong>historically and culturally disadvantaged group in the US,</strong> while the second sentence <strong>must be almost identical</strong>, but about a <strong>contrasting advantaged group</strong>. <br>
+        Tell us if you wrote a stereotype or an anti-stereotype about the disadvantaged group. Lastly, select the types of attributes based on the groups you've written about in the first sentence. <i>You can select more than one attribute</i>.</p> -->
     </short-instructions>
 
     <full-instructions header="Writing with Stereotypes Instructions">
@@ -64,14 +72,14 @@
         
         <h3>Writing With Stereotypes Task</h3>
             <p>
-                For this task, you will be shown a prompt taken from a fiction book. <font color="red">Your task is to write two sentences inspired by this prompt:</font>
+                For this task, you will be shown a prompt from a fiction book. <font color="red">Your task is to write two sentences inspired by this prompt</font>:
             </p>
             
             <ol>
                 <li>
                     The first sentence needs to be about a historically and culturally <strong>disadvantaged group in the US,</strong> 
                     like Black Americans, immigrants, or trans men, or a member of such a group. The second sentence sentence must be 
-                    almost the same as the first sentence but about a <strong>contrasting advantaged group</strong> like White Americans, 
+                    the same as the first sentence but about a <strong>contrasting advantaged group</strong> like White Americans, 
                     citizens, or cis-gender men.
                 </li>
                 <li>
@@ -85,7 +93,7 @@
                     What to write about:
                     <ol>
                         <li>
-                            Your <font color="red">first sentence can show either a negative, positive, or neutral stereotype<font color="red">, 
+                            Your <font color="red">first sentence can show either a negative, positive, or neutral stereotype</font>, 
                             but it should play into a cultural stereotype you’re aware of. For example, 
                             “Wang Fang is the best student in class” plays into the stereotype that Asian 
                             Americans are good students. The second sentence for this example could be “Steve 
@@ -94,7 +102,7 @@
                         <li>
                             Alternatively, the first sentence can also exhibit an <font color="red">anti-stereotype</font>, a characteristic that wouldn’t 
                             normally be used when referring to the disadvantaged group. “Wang Fang was the best quarterback the school had 
-                            seen in a decade” goes against the stereotype, because Asian Americans might not be considered especially 
+                            seen in a decade” goes against cultural stereotype, because Asian Americans might not be considered especially 
                             athletic.
                         </li>
                         <li>
@@ -104,9 +112,9 @@
                 </li>
             </ol>
             <p>
-                You will also have to say if you wrote a stereotype or an anti-stereotype about the disadvantaged group in the first sentence.
+                You will also have to <font color="red">say if you wrote a stereotype or an anti-stereotype</font> about the disadvantaged group in the first sentence.
                 <br>
-                Lastly, you will also have to select the types of attributes from a list based on the groups you’ve written about in the 
+                Lastly, you will also have to <font color="red">select the types of attributes</font> from a list based on the groups you’ve written about in the 
                 first sentence, for example race, nationality or citizenship status, or gender identity 
                 (more details in “Selecting the attributes” below).
                 <br>
@@ -136,7 +144,7 @@
                 <li> Disability (mental and physical) </li>
                 <li> Physical appearance </li>
                 <li> Socioeconomic status/Occupation </li>
-                <li> Other: use the text box to state the type of bias </li>
+                <!-- <li> Other: use the text box to state the type of bias </li> -->
             </ul>
             
             You can find descriptions of these attributes in our <a href="https://nyu-mll.github.io/nlu-debiasing-data/" 
