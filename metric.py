@@ -5,6 +5,7 @@
 # output_file: dump of log softmax scores in panda DataFrame (csv format)
 
 import os
+import json
 import math
 import torch
 import argparse
@@ -13,6 +14,8 @@ import numpy as np
 import pandas as pd
 
 from transformers import BertTokenizer, BertForMaskedLM
+from transformers import AlbertTokenizer, AlbertForMaskedLM
+from transformers import RobertaTokenizer, RobertaForMaskedLM
 from collections import defaultdict
 
 
@@ -111,7 +114,7 @@ def extract_template(df_data):
     return df_templates
 
 
-def align(input_tokens, model_tokens):
+def align(input_tokens, model_tokens, word_prefix, subword_prefix):
     """
     Create alignment between input-token index and model-token index (subword based)
     Both input are list of tokens (should be without any special tokens such as [CLS])
@@ -142,8 +145,12 @@ def align(input_tokens, model_tokens):
             model_idx += 1
         else:
             sub_token = model_tokens[model_idx]
-            if sub_token.startswith('##'):
-                sub_token = sub_token.replace('##', '')
+            if subword_prefix:
+                if sub_token.startswith(subword_prefix):
+                    sub_token = sub_token[len(subword_prefix):]
+            if word_prefix:
+                if sub_token.startswith(word_prefix):
+                    sub_token = sub_token[len(word_prefix):]
             tmp += sub_token
             idx_mappings[input_idx].append(model_idx)
             if input_tokens[input_idx] == tmp:
@@ -193,7 +200,7 @@ def compute_log_prob(sent, template_idx, lm):
 
     # mapping sentence index and model index
     # pruning [CLS] and [SEP] in the model tokens
-    idx_mappings = align(sent, model_tokens[1:-1])
+    idx_mappings = align(sent, model_tokens[1:-1], lm["word_prefix"], lm["subword_prefix"])
 
     # mask template (sub)words
     mask_token_id = tokenizer.convert_tokens_to_ids(mask_token)
@@ -429,27 +436,53 @@ def mask_predict(data, lm, T=10):
 
 def evaluate(args):
 
+    print("Processing:")
+    print("Data dir:", args.data_dir)
+    print("Metric:", args.metric)
+    print("Model:", args.lm_model)
+
     output_file = args.output_file
 
     # load data into panda DataFrame
     df_data = read_data(args.data_dir)
     df_templates = extract_template(df_data)
 
-    # load BERT model
-    tokenizer = BertTokenizer.from_pretrained('bert-base-uncased')
-    model = BertForMaskedLM.from_pretrained('bert-base-uncased')
+    if args.lm_model == "bert":
+        tokenizer = BertTokenizer.from_pretrained('bert-base-uncased')
+        model = BertForMaskedLM.from_pretrained('bert-base-uncased')
+        subword_prefix = ''
+        word_prefix = '##'
+        uncased = True
+    elif args.lm_model == "roberta":
+        tokenizer = RobertaTokenizer.from_pretrained('roberta-large')
+        model = RobertaForMaskedLM.from_pretrained('roberta-large')
+        subword_prefix = ''
+        word_prefix = 'Ġ'
+        uncased = False
+    elif args.lm_model == "albert":
+        tokenizer = AlbertTokenizer.from_pretrained('albert-xxlarge-v2')
+        model = AlbertForMaskedLM.from_pretrained('albert-xxlarge-v2')
+        subword_prefix = ''
+        word_prefix = '_'
+        uncased = False
+
+
     model.eval()
     torch.set_grad_enabled(False)
 
     mask_token = tokenizer.mask_token
     log_softmax = torch.nn.LogSoftmax(dim=0)
     vocab = tokenizer.get_vocab()
+    with open(args.lm_model + ".vocab", "w") as f:
+        f.write(json.dumps(vocab))
 
     lm = {"model": model,
           "tokenizer": tokenizer,
           "mask_token": mask_token,
           "log_softmax": log_softmax,
-          "uncased": True
+          "uncased": uncased,
+          "word_prefix": word_prefix,
+          "subword_prefix": subword_prefix
     }
 
     pro, anti, neutral = 0, 0, 0
@@ -500,10 +533,14 @@ def evaluate(args):
     print("anti:", anti, round(anti / (pro + anti + neutral) * 100, 2))
     print("neutral:", neutral, round(neutral / (pro + anti + neutral) * 100, 2))
 
+    print('=' * 100)
+    print()
+
 
 parser = argparse.ArgumentParser()
 parser.add_argument("--data_dir", type=str, help="path to data directory")
 parser.add_argument("--metric", type=str, help="metric for scoring (baseline, mask-random, mask-predict)")
+parser.add_argument("--lm_model", type=str, help="pretrained LM model to use")
 parser.add_argument("--output_file", type=str, help="path to output file")
 
 args = parser.parse_args()
