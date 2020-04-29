@@ -162,6 +162,10 @@ def align(input_tokens, model_tokens, word_prefix, subword_prefix):
 
         count += 1
 
+    if len(idx_mappings) != len(input_tokens):
+        import pdb
+        pdb.set_trace()
+
     # make sure mapping is done for each token in the input
     assert len(idx_mappings) == len(input_tokens)
 
@@ -463,8 +467,8 @@ def evaluate(args):
         tokenizer = AlbertTokenizer.from_pretrained('albert-xxlarge-v2')
         model = AlbertForMaskedLM.from_pretrained('albert-xxlarge-v2')
         subword_prefix = ''
-        word_prefix = '_'
-        uncased = False
+        word_prefix = '▁'
+        uncased = True
 
 
     model.eval()
