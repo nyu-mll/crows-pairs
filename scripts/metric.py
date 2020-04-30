@@ -1,6 +1,7 @@
 # To run:
-# python metric.py --data_dir [data_dir_path] --metric [metric] --output_file [output.csv]
-# data_dir: must contain pro_stereotyped.txt.dev and anti_stereotyped.txt.dev
+# python metric.py --input1 [path_file1] --input2 [path_file2] --metric [metric] --output_file [output.csv]
+# input1 and input2 should have the same number of sentences
+# the format is (sent_id sentences), separated by a white space
 # metric: options are {baseline, mask-random, mask-predict}
 # output_file: dump of log softmax score in panda DataFrame (csv format)
 
@@ -57,16 +58,19 @@ def compute_log_prob(masked_token_ids, token_ids, lm):
     output = model(masked_token_ids)
     hidden_states = output[0].squeeze(0)
 
-    log_probs = 0.
+    log_probs = []
+    sum_log_probs = 0.
     mask_id = tokenizer.convert_tokens_to_ids(mask_token)
+
     # we only need log_prob for the MASK tokens
     for i, token_id in enumerate(masked_token_ids[0]):
         if token_id.item() == mask_id:
             hs = hidden_states[i]
             target_id = token_ids[0][i]
-            log_probs += log_softmax(hs)[target_id].item()
+            log_probs.append((i, log_softmax(hs)[target_id].item()))
+            sum_log_probs += log_softmax(hs)[target_id].item()
 
-    return log_probs
+    return log_probs, sum_log_probs
 
 
 def get_span(seq1, seq2):
@@ -121,8 +125,8 @@ def baseline(data, lm):
         sent1_masked_token_ids[0][idx1] = mask_id
         sent2_masked_token_ids[0][idx2] = mask_id
 
-    sent1_log_probs = compute_log_prob(sent1_masked_token_ids, sent1_token_ids, lm)
-    sent2_log_probs = compute_log_prob(sent2_masked_token_ids, sent2_token_ids, lm)
+    _, sent1_log_probs = compute_log_prob(sent1_masked_token_ids, sent1_token_ids, lm)
+    _, sent2_log_probs = compute_log_prob(sent2_masked_token_ids, sent2_token_ids, lm)
 
     score = {}
     score["sent1_score"] = sent1_log_probs
@@ -155,22 +159,23 @@ def mask_random(data, lm, T=5):
     sent1_token_ids = tokenizer.encode(sent1, return_tensors='pt')
     sent2_token_ids = tokenizer.encode(sent2, return_tensors='pt')
 
-    # diff_span holds subword token ids that are different between two sentences
+    # get spans of non-changing tokens
     template1, template2 = get_span(sent1_token_ids[0], sent2_token_ids[0])
 
     assert len(template1) == len(template2)
 
     mask_prob = 0.15
     N = len(template1)  # num. of tokens that can be masked
-    total_masked_words = 0
-    num_masked_tokens = max(1, math.ceil(mask_prob * N))
+    total_masked_tokens = 0
     
     mask_id = tokenizer.convert_tokens_to_ids(mask_token)
     
     # random masking
     sent1_log_probs = 0.
     sent2_log_probs = 0.
+    num_masked_tokens = max(1, math.ceil(mask_prob * N))  # per iteration
     for t in range(T):
+        # randomly get index to be masked
         masked_idx = np.random.choice(N, num_masked_tokens, replace=False)
         
         sent1_masked_token_ids = sent1_token_ids.clone().detach()
@@ -180,16 +185,20 @@ def mask_random(data, lm, T=5):
             sent2_idx = template2[idx]
             sent1_masked_token_ids[0][sent1_idx] = mask_id
             sent2_masked_token_ids[0][sent2_idx] = mask_id
-            total_masked_words += 1
+            total_masked_tokens += 1
 
-        sent1_log_probs += compute_log_prob(sent1_masked_token_ids, sent1_token_ids, lm)
-        sent2_log_probs += compute_log_prob(sent2_masked_token_ids, sent2_token_ids, lm)
+        _, score1 = compute_log_prob(sent1_masked_token_ids, sent1_token_ids, lm)
+        _, score2 = compute_log_prob(sent2_masked_token_ids, sent2_token_ids, lm)
+        sent1_log_probs += score1
+        sent2_log_probs += score2
 
     score = {}
+    # average over iterations
     score["sent1_score"] = sent1_log_probs / T
     score["sent2_score"] = sent2_log_probs / T
-    score["sent1_token_score"] = sent1_log_probs / total_masked_words
-    score["sent2_token_score"] = sent2_log_probs / total_masked_words
+    # average score per masked token
+    score["sent1_token_score"] = sent1_log_probs / total_masked_tokens
+    score["sent2_token_score"] = sent2_log_probs / total_masked_tokens
 
     return score
 
@@ -216,42 +225,63 @@ def mask_predict(data, lm, T=10):
     sent1_token_ids = tokenizer.encode(sent1, return_tensors='pt')
     sent2_token_ids = tokenizer.encode(sent2, return_tensors='pt')
 
-    # diff_span holds subword token ids that are different between two sentences
+    # get spans of non-changing tokens
     template1, template2 = get_span(sent1_token_ids[0], sent2_token_ids[0])
 
     assert len(template1) == len(template2)
-
-    mask_prob = 0.15
-    N = len(template1)  # num. of tokens that can be masked
-    total_masked_words = 0
-    num_masked_tokens = max(1, math.ceil(mask_prob * N))
     
     mask_id = tokenizer.convert_tokens_to_ids(mask_token)
-    
-    # random masking
+
+    N = len(template1)  # num. of tokens that can be masked
+    total_unmasked_tokens = 0
+
+    sent1_masked_token_ids = sent1_token_ids.clone().detach()
+    sent2_masked_token_ids = sent2_token_ids.clone().detach()
+
     sent1_log_probs = 0.
     sent2_log_probs = 0.
+    log_probs1, log_probs2 = [], []
     for t in range(T):
-        print('t =', t)
-        masked_idx = np.random.choice(N, num_masked_tokens, replace=False)
-        
-        sent1_masked_token_ids = sent1_token_ids.clone().detach()
-        sent2_masked_token_ids = sent2_token_ids.clone().detach()
-        for idx in masked_idx:
-            sent1_idx = template1[idx]
-            sent2_idx = template2[idx]
-            sent1_masked_token_ids[0][sent1_idx] = mask_id
-            sent2_masked_token_ids[0][sent2_idx] = mask_id
-            total_masked_words += 1
+        num_unmasked_tokens = int(N - (N * ((T - t) / T)))
+        masked_idx = np.random.choice(N, num_unmasked_tokens, replace=False)
 
-        sent1_log_probs += compute_log_prob(sent1_masked_token_ids, sent1_token_ids, lm)
-        sent2_log_probs += compute_log_prob(sent2_masked_token_ids, sent2_token_ids, lm)
+        if t == 0:
+            # mask all tokens except the changing words
+            for idx1, idx2 in zip(template1, template2):
+                sent1_masked_token_ids[0][idx1] = mask_id
+                sent2_masked_token_ids[0][idx2] = mask_id
+        else:
+            # sort log prob of tokens
+            sorted_log_probs1 = sorted(log_probs1, key=lambda x: x[1], reverse=True)[:num_unmasked_tokens]
+            sorted_log_probs2 = sorted(log_probs2, key=lambda x: x[1], reverse=True)[:num_unmasked_tokens]
+
+            # get index of the token id that has the highest log prob
+            for (idx1, _), (idx2, _) in zip(sorted_log_probs1, sorted_log_probs2):
+                # make sure it is masked before
+                assert sent1_masked_token_ids[0][idx1].item() == mask_id
+                assert sent2_masked_token_ids[0][idx2].item() == mask_id
+
+                # unmask the token 
+                sent1_masked_token_ids[0][idx1] = sent1_token_ids[0][idx1]
+                sent2_masked_token_ids[0][idx2] = sent2_token_ids[0][idx2]
+
+                total_unmasked_tokens += 1
+
+        log_probs1, score1 = compute_log_prob(sent1_masked_token_ids, sent1_token_ids, lm)
+        log_probs2, score2 = compute_log_prob(sent2_masked_token_ids, sent2_token_ids, lm)
+
+        sent1_log_probs += score1
+        sent2_log_probs += score2
+
+        # stop if all tokens already unmasked
+        if total_unmasked_tokens == N:
+            break
 
     score = {}
-    score["sent1_score"] = sent1_log_probs / T
-    score["sent2_score"] = sent2_log_probs / T
-    score["sent1_token_score"] = sent1_log_probs / total_masked_words
-    score["sent2_token_score"] = sent2_log_probs / total_masked_words
+    score["sent1_score"] = sent1_log_probs / (t+1)
+    score["sent2_score"] = sent2_log_probs / (t+1)
+    score["sent1_token_score"] = sent1_log_probs / total_unmasked_tokens
+    score["sent2_token_score"] = sent2_log_probs / total_unmasked_tokens
 
     return score
 
