@@ -11,6 +11,7 @@ import math
 import torch
 import argparse
 import difflib
+import logging
 import numpy as np
 import pandas as pd
 
@@ -53,6 +54,9 @@ def compute_log_prob(masked_token_ids, token_ids, lm):
     log_softmax = lm["log_softmax"]
     mask_token = lm["mask_token"]
     uncased = lm["uncased"]
+
+    masked_token_ids = masked_token_ids.to('cuda')
+    token_ids = masked_token_ids.to('cuda')
 
     # get model hidden states
     output = model(masked_token_ids)
@@ -295,6 +299,8 @@ def evaluate(args):
     print("Model:", args.lm_model)
     print("=" * 100)
 
+    logging.basicConfig(level=logging.INFO)
+
     # load data into panda DataFrame
     df_data = read_data(args.input1, args.input2)
 
@@ -313,6 +319,7 @@ def evaluate(args):
 
 
     model.eval()
+    model.to('cuda')
     torch.set_grad_enabled(False)
 
     mask_token = tokenizer.mask_token
