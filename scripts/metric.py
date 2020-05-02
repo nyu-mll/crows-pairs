@@ -56,11 +56,12 @@ def compute_log_prob(masked_token_ids, token_ids, lm):
     uncased = lm["uncased"]
 
     masked_token_ids = masked_token_ids.to('cuda')
-    token_ids = masked_token_ids.to('cuda')
+    token_ids = token_ids.to('cuda')
 
-    # get model hidden states
-    output = model(masked_token_ids)
-    hidden_states = output[0].squeeze(0)
+    with torch.no_grad():
+        # get model hidden states
+        output = model(masked_token_ids)
+        hidden_states = output[0].squeeze(0)
 
     log_probs = []
     sum_log_probs = 0.
@@ -320,7 +321,7 @@ def evaluate(args):
 
     model.eval()
     model.to('cuda')
-    torch.set_grad_enabled(False)
+    # torch.set_grad_enabled(False)
 
     mask_token = tokenizer.mask_token
     log_softmax = torch.nn.LogSoftmax(dim=0)
