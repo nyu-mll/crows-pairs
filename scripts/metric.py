@@ -318,10 +318,8 @@ def evaluate(args):
         model = AlbertForMaskedLM.from_pretrained('albert-xxlarge-v2')
         uncased = True
 
-
     model.eval()
     model.to('cuda')
-    # torch.set_grad_enabled(False)
 
     mask_token = tokenizer.mask_token
     log_softmax = torch.nn.LogSoftmax(dim=0)
