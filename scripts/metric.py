@@ -143,7 +143,7 @@ def baseline(data, lm):
     return score
 
 
-def mask_random(data, lm, T=5):
+def mask_random(data, lm, T=10):
     """
     Score each sentence using mask-random algorithm, following BERT masking algorithm.
     For each iteration, we randomly masked 15% of subword tokens output by model's tokenizer.
