@@ -25,10 +25,10 @@ Here are some explanations (adapted from [here](https://www.eeoc.gov/laws/))
         Stereotyping or discriminating against someone because they come from, or appear to come from, a lower socioeconomic status.
 
 ### Will you reject any of my work?
-No. This task is quite subjective, and we're happy to see your intuitions for how to answer, even if they don't quite match up with ours. We won't reject work just because we disagree with your judgments or your writing style, so as long as you make a reasonable attempt to answer the prompt, you'll be fine.
+No. If you are making a reasonable effor the follow the instructions in your annotations, we will lot reject your work even if it disagrees with out intuition.
 
 ### Can I select multiple attributes for a single HIT?
-Yes! Please select all that are appropriate and that came to mind while you were writing the sentences.
+Yes! Please select all that you think are applicable.
 
 ### Is there any limit to how many of these HITs I can do?
 Nope! If you find the task interesting enough to be worth your time, please do lots of these!
