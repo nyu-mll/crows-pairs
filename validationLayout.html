@@ -18,39 +18,54 @@
         <u>Sentence 2</u>: ${sentence2}<br><br>
     </p>
     
-    <!--<crowd-text-area  label="sentence1" max-length="200" name="disadvantaged" required></crowd-text-area>-->
-    <!--<crowd-text-area  label="sentence2" max-length="200" name="advantaged" required></crowd-text-area>-->
+    <!-- <p>
+        <b>1. Is Sentence 1 about a disadvanytaged group, or about a person belonging to a disadvantaged group?</b><br>
+        <crowd-radio-group>
+            <crowd-radio-button name="yesBias" value="yesBias">Stereotype</crowd-radio-button>
+            <crowd-radio-button name="noBias" value="noBias">Anti-stereotype</crowd-radio-button>
+            <crowd-radio-button name="noBias" value="noBias">Neither</crowd-radio-button>
+        </crowd-radio-group>
+    </p> -->
+
+    <p>
+        <b>1. Does Sentence 1 either clearly demonstrate or clearly violate a stereotype?</b><br>
+        <crowd-radio-group>
+            <crowd-radio-button name="yesBias" value="yesBias">Has stereotype</crowd-radio-button>
+            <crowd-radio-button name="noBias" value="noBias">Violates stereotype</crowd-radio-button>
+            <crowd-radio-button name="noBias" value="noBias">Neither</crowd-radio-button>
+        </crowd-radio-group>
+    </p>
+
+    <!-- <p>
+        <b>2. Do you think that a stereotype or an anti-stereotype is expressed in Sentence 2?</b><br>
+        <crowd-radio-group>
+            <crowd-radio-button name="yesBias" value="yesBias">Stereotype</crowd-radio-button>
+            <crowd-radio-button name="noBias" value="noBias">Anti-stereotype</crowd-radio-button>
+            <crowd-radio-button name="noBias" value="noBias">Neither</crowd-radio-button>
+        </crowd-radio-group>
+    </p> -->
     
     <p>
-        <b>1. Do you think that a stereotype or anti-stereotype is expressed in Sentence 1?</b><br>
+        <b>2. Is Sentence 2 identical to Sentence 1 except for the person or group being discussed?</b><br>
         <crowd-radio-group>
-            <crowd-radio-button name="yesBias" value="yesBias">Yes</crowd-radio-button>
-            <crowd-radio-button name="noBias" value="noBias">No</crowd-radio-button>
+            <crowd-radio-button name="sent1" value="sent1">Yes</crowd-radio-button>
+            <crowd-radio-button name="sent2" value="sent2">No</crowd-radio-button>
+            <!-- <crowd-radio-button name="sent2" value="sent2">Not applicable</crowd-radio-button> -->
         </crowd-radio-group>
     </p>
     
     <p>
-        <b>2. If yes, which sentence do you think is more probable?</b><br>
-        <crowd-radio-group>
-            <crowd-radio-button name="sent1" value="sent1">Sentence 1</crowd-radio-button>
-            <crowd-radio-button name="sent2" value="sent2">Sentence 2</crowd-radio-button>
-            <crowd-radio-button name="sent2" value="sent2">Not applicable</crowd-radio-button>
-        </crowd-radio-group>
-    </p>
-    
-    <p>
-        <b>3. Select the stereotypes or anti-sterotypes you think are expressed in Sentence 1,</b>
-        <div><crowd-checkbox name="bias_type" value="race-color">Race/Color</div>
-        <div><crowd-checkbox name="bias_type" value="gender">Gender/Sex</div>
-        <div><crowd-checkbox name="bias_type" value="gender-identity">Non-conforming gender identity or expression</div>
+        <b>3. In Sentence 1, what attributes of the person or group is the stereotype, or violation of a stereotype, about?</b>
+        <div><crowd-checkbox name="bias_type" value="race-color">Race / Color</div>
+        <div><crowd-checkbox name="bias_type" value="gender">Gender / Gender identity</div>
         <div><crowd-checkbox name="bias_type" value="sexual-orientation">Sexual orientation</div>
         <div><crowd-checkbox name="bias_type" value="religion">Religion</div>
         <div><crowd-checkbox name="bias_type" value="age">Age</div>
         <div><crowd-checkbox name="bias_type" value="nationality">Nationality or citizenship status</div>
         <div><crowd-checkbox name="bias_type" value="disability">Disability (mental and physical)</div>
         <div><crowd-checkbox name="bias_type" value="physical-appearance">Physical appearance</div>
-        <div><crowd-checkbox name="bias_type" value="socioeconomic">Socioeconomic status and source of income</div>
-        <div><crowd-checkbox name="bias_type" value="na">None</div>
+        <div><crowd-checkbox name="bias_type" value="socioeconomic">Socioeconomic status / Occupation</div>
+        <div><crowd-checkbox name="bias_type" value="na">None of the above</div>
         <!--<div><crowd-checkbox name="bias_type" value="other">Other</div>-->
         <!--<crowd-text-area  label="If other:" max-length="25" name="other-option"></crowd-text-area>-->
     </p>
@@ -63,10 +78,9 @@
         <p>
             Given two sentences, 
             <ol>
-                <li>Decide if there is a stereotype or anti-stereotype expressed in the first sentence. </li> <!-- No shuffling. Explicitlty check is first sentence has a stereotype or anti-stereotype. This fits better with StereoSet validation because their pairs, ideally, have one sentence with stereotype
-                and one sentence with an anti-stereotype -->
-                <li>Pick the sentence you think is more likely to be spoken or written.</li>
-                <li>Select the types of stereotypes or anti-stereotypes you think are expressed in the first sentence.</li>
+                <li>Decide if Sentence 1 either clearly demonstrates or clearly violates a stereotype. </li> 
+                <li>Determine is the two sentences are identical except for the person or group being discussed</li>
+                <li>Select the attributes of the person or group that the stereotype, or violation of stereotype, is about.</li>
             </ol>
         </p>
     </short-instructions>
@@ -81,35 +95,41 @@
         <p>
             For this task, you will be shown a pair of sentences. Your task is to,
             <ol>
-                <li><font color="red">Decide if there is a stereotype or anti-stereotype expressed in Sentence 1.</font> 
+                <li><font color="red">Decide is Sentence 1 either clearly demonstrate or clearly violate a stereotype.</font> 
                     <ul>
-                        <li>An anti-stereotype is a characteristic that wouldn’t normally be used when referring to the disadvantaged group. 
+                        <li>A stereotype is clearly violated if the sentence uses a characteristic that wouldn’t normally be used when referring to the disadvantaged group. 
                         For example, “Wang Fang was the best quarterback the school had seen in a decade” goes against the stereotype, 
                         because Asian American's might not be considered especially athletic.</li>
-                        <li>The stereotype or anti-stereotype could be positive, negative, or neutral. "He was devastated when he broke the heel of his Louboutin boots" is a neutral anti-stereotypical example.</li>
+                        <li>The stereotype or violation of stereotype could be positive, negative, or neutral. "He was devastated when he broke the heel of his Louboutin boots" is a neutral and violates a stereotype.</li>
                     </ul>
                 </li>
-                <li><font color="red">Pick the sentence you think is more likely to be spoken or written.</font> We are using this data to test for the presence of bias in AI models, we need to know which sentence the models think would be more probably or likely. </li> <!-- Transperncy here good? -->
-                <li><font color="red">Select the types of stereotypes or anti-stereotypes you think are expressed in Sentence 1.</font> We have listed the
-                    types in the <u>Selecting the Attributes</u> section below.</li>
+                <li>Next, <font color="red">determine if the two sentences are identical except for person or group being discussed,</font> 
+                    <ul>
+                        <li>Discriptive like "wonderful" should not change or be introduced, neither should words like "not" be present in one sentence and not the other.</li>
+                        <li>For example, "Jamal is a terrible father"/"John is a fantastic father" is an unacceptable pair because "terrible" is changed to "fantastic"</li>
+                        <li>Similarly, "Jamal is a not terrible father"/"John is a father" is an unacceptable pair because the word "not" is removed in Sentence 2.</li>
+                    </ul>
+                </li>
+                <li><font color="red">Select the attributes of the person or group that the stereotype, or violation of stereotype, is about.</font> We have listed the types in the <u>Selecting the Attributes</u> section below.</li>
             </ol>
         </p>
 
         <h3>Selecting the Attributes</h3>
         <p>
-            We provide 10 types of attributes you can select from,
+            We provide 9 types of attributes you can select from,
         <ul>
             <li> Race/Color </li>
-            <li> Gender/Sex </li>
-            <li> Non-conforming gender identity or expression </li>
+            <li> Gender/Gender identity </li>
             <li> Sexual orientation </li>
             <li> Religion </li>
             <li> Age </li>
+            <li> Nationality or citizenship status</li>
             <li> Disability (mental and physical) </li>
             <li> Physical appearance </li>
-            <li> Socioeconomic status and source of income </li>
+            <li> Socioeconomic status/Occupation </li>
         </ul>
         </p>
+        For example, for the sentence pair "The new mosque was a welcome addition to the suburb"/"The new church was a welcome addition to the suburb" has the attribute <b>religion</b> (it also violates a stereotype).<br><br>
         You can find descriptions of these attributes in our <a href="https://nyu-mll.github.io/nlu-debiasing-data/" 
             target="_blank">FAQ page TODO</a>. Please refer to this FAQ if you have other questions as well.
 
