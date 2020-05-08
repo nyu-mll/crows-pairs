@@ -4,43 +4,43 @@
       please refer to https://docs.aws.amazon.com/sagemaker/latest/dg/sms-ui-template-reference.html -->
 <!-- You must include crowd-form so that your task submits answers to MTurk -->
 <crowd-form answer-format="flatten-objects">
-    <!--<p>-->
-    <!--    <small><i>Please read the full instructions carefully before starting. (Optional) To ensure that you get paid fairly, -->
-    <!--    you can report your actual working time at the bottom of each HIT.</i></small><br>-->
-    <!--</p>-->
-    
     <p>
-        Given these two sentences, please answer the 2 following questions,
+       <small><i>Please read the full instructions carefully before starting. (Optional) To ensure that you get paid fairly,
+        you can report your actual working time at the bottom of each HIT.</i></small><br>
     </p>
     
     <p>
-        <u>Sentence 1</u>: ${sentence1}<br>
-        <u>Sentence 2</u>: ${sentence2}<br><br>
+        Given these two sentences, please answer the 4 following questions,
+    </p>
+    
+    <p>
+        <u>Sentence 1</u>: ${stereo}<br>
+        <u>Sentence 2</u>: ${anti}<br><br>
     </p>
     
     <!--<crowd-text-area  label="sentence1" max-length="200" name="disadvantaged" required></crowd-text-area>-->
     <!--<crowd-text-area  label="sentence2" max-length="200" name="advantaged" required></crowd-text-area>-->
     
     <p>
-        <b>1. Does Sentence 1 either clearly demonstrate or clearly violate a stereotype?</b><br>
+        <b>1. Does Sentence 1 either clearly demonstrate or clearly violate a cultural stereotype?</b><br>
         <crowd-radio-group>
-            <crowd-radio-button name="yesBias" value="yesBias">Has stereotype</crowd-radio-button>
-            <crowd-radio-button name="noBias" value="noBias">Violates stereotype</crowd-radio-button>
-            <crowd-radio-button name="noBias" value="noBias">Neither</crowd-radio-button>
+            <crowd-radio-button name="yesBias1" value="yesBias1">Demonstrates stereotype</crowd-radio-button>
+            <crowd-radio-button name="noBias1" value="noBias1">Violates stereotype</crowd-radio-button>
+            <crowd-radio-button name="neitherBias1" value="neitherBias1">Neither</crowd-radio-button>
         </crowd-radio-group>
     </p>
 
     <p>
-        <b>2. Does Sentence 2 either clearly demonstrate or clearly violate a stereotype?</b><br>
+        <b>2. Does Sentence 2 either clearly demonstrate or clearly violate a cultural stereotype?</b><br>
         <crowd-radio-group>
-            <crowd-radio-button name="yesBias" value="yesBias">Has stereotype</crowd-radio-button>
-            <crowd-radio-button name="noBias" value="noBias">Violates stereotype</crowd-radio-button>
-            <crowd-radio-button name="noBias" value="noBias">Neither</crowd-radio-button>
+            <crowd-radio-button name="yesBias2" value="yesBias2">Demonstrates stereotype</crowd-radio-button>
+            <crowd-radio-button name="noBias2" value="noBias2">Violates stereotype</crowd-radio-button>
+            <crowd-radio-button name="neitherBias2" value="neitherBias2">Neither</crowd-radio-button>
         </crowd-radio-group>
     </p>
     
     <p>
-        <b>3. Is Sentence 2 identical to Sentence 1 except a word describing the person or group being discussed?</b><br>
+        <b>3. Are the two sentences identical except for words stereotyping the person or group being discussed?</b><br>
         <crowd-radio-group>
             <crowd-radio-button name="sent1" value="sent1">Yes</crowd-radio-button>
             <crowd-radio-button name="sent2" value="sent2">No</crowd-radio-button>
@@ -49,7 +49,7 @@
     </p>
     
     <p>
-        <b>4. What attributes of the person or group is the stereotype about?,</b>
+        <b>4. What attributes of the person or group is the stereotype about?</b>
         <div><crowd-checkbox name="bias_type" value="race-color">Race/Color</div>
         <div><crowd-checkbox name="bias_type" value="gender">Gender/Sex</div>
         <div><crowd-checkbox name="bias_type" value="religion">Religion</div>
@@ -62,21 +62,21 @@
     <br><br><br>
     
     <!-- Stanford Fair Work -->
-    <!--<script src="https://fairwork.stanford.edu/fairwork.js?aws_account=131875121573"></script> -->
+    <script src="https://fairwork.stanford.edu/fairwork.js?aws_account=131875121573"></script> 
     <short-instructions>
         <p>
             Given two sentences, 
             <ol>
-                <li>Decide if there is a stereotype expressed in the first sentence. </li> <!-- No shuffling. Explicitlty check is first sentence has a stereotype or anti-stereotype. This fits better with StereoSet validation because their pairs, ideally, have one sentence with stereotype
-                and one sentence with an anti-stereotype -->
-                <!-- <li>Pick the sentence you think is more likely to be spoken or written.</li> -->
-                <li>Select the types of stereotypes you think are expressed in the first sentence.</li>
+                <li>Decide if Sentence 1 either clearly demonstrates or clearly violates a cultural stereotype. </li>
+                <li>Decide if Sentence 2 either clearly demonstrates or clearly violates a cultural stereotype. </li> 
+                <li>Determine if the two sentences are identical except for the words that stereotype the person or group being discusses</li>
+                <li>Select the attributes of the person or group that the stereotype is about.</li>
             </ol>
         </p>
     </short-instructions>
     
     
-    <full-instructions header="Social Biases in AI Instructions">
+    <full-instructions header="Annotating Stereotypes">
         <p> The <a href="https://cds.nyu.edu/" target="_blank">New York University Center for Data Science</a> is collecting 
         your answers to study machine understanding of English and to test the presence of social biases in AI models. Thank you 
         for your help! </p>
@@ -85,18 +85,18 @@
         <p>
             For this task, you will be shown a pair of sentences. Your task is to,
             <ol>
-                <li><font color="red">Decide if there is a stereotype expressed in Sentence 1.</font> The stereotype could be positive, negative, or neutral. For example, "Asians are good at math" expresses a positive stereotype. 
-                    <!-- <ul>
-                        <li>An anti-stereotype is a characteristic that wouldn’t normally not be assigned to the disadvantaged group. 
+                <li><font color="red">Decide if Sentence 1 either clearly demonstrate or clearly violate a cultural stereotype.</font> 
+                    <ul>
+                        <li>A stereotype is clearly violated if the sentence uses a characteristic that wouldn’t normally be used when referring to the disadvantaged group. 
                         For example, “Wang Fang was the best quarterback the school had seen in a decade” goes against the stereotype, 
-                        because Asian American's might not be considered especially athletics.</li>
-                        <li>The stereotype or anti-stereotype could be positive, negative, or neutral. For example, "He was devastaed when he broke the heel of his Louboutin boots" is a neutral anti-stereotypical example.</li>
-                    </ul> -->
+                        because Asian American's might not typically be considered especially athletic.</li>
+                        <li>The stereotype or violation of stereotype could be positive, negative, or neutral. “I’m sorry but those people are Middle Eastern so we should be cautious” has a negative stereotype. </li>
+                        <li>"He was devastated when he broke the heel of his Louboutin boots" is neutral and violates a stereotype.</li>
+                    </ul>
                 </li>
-                <!-- <li><font color="red">Pick the sentence you think is more likely to be spoken or written.</font> We are using this data to test for the presence 
-                of bias in AI models, we need to know which sentence is thinks would be more probably or likely. </li> -->
-                <li><font color="red">Select the types of stereotypes you think are expressed in Sentence 1.</font> We have listed the
-                    types in the <u>Selecting the Attributes</u> section below.</li>
+                <li><font color="red">Decide if Sentence 2 either clearly demonstrate or clearly violate a cultural stereotype</font>.</li>
+                <li>Next, <font color="red">determine if the two sentences are identical except for the words stereotyping the person or group being discussed</font>.</li>
+                <li><font color="red">Select the attributes of the person or group that the stereotype is about.</font> We have listed the types in the <u>Selecting the Attributes</u> section below.</li>
             </ol>
         </p>
 
@@ -110,7 +110,7 @@
             <li> Profession </li>
         </ul>
         </p>
-        You can find descriptions of these attributes in our <a href="https://nyu-mll.github.io/nlu-debiasing-data/" 
-            target="_blank">FAQ page TODO</a>. Please refer to this FAQ if you have other questions as well.
+        You can find descriptions of these attributes in our <a href="https://nyu-mll.github.io/nlu-debiasing-data/stereoset-validation.html" 
+            target="_blank">FAQ page</a>. Please refer to this FAQ if you have other questions as well.
     </full-instructions>
 </crowd-form>
