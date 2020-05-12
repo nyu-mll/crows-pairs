@@ -209,6 +209,71 @@ def mask_random(data, lm, T=10):
     return score
 
 
+def mask_ngram(data, lm, n=1):
+    """
+    Score each sentence by masking one word at a time.
+    The score for a sentence is the sum of log probability of each word in
+    the sentence.
+    n = n-gram of token that is masked, if n > 1, we mask tokens with overlapping
+    n-grams.
+    """
+    model = lm["model"]
+    tokenizer = lm["tokenizer"]
+    log_softmax = lm["log_softmax"]
+    mask_token = lm["mask_token"]
+    uncased = lm["uncased"]
+
+    sent1, sent2 = data["sent1"], data["sent2"]
+
+    if uncased:
+        sent1 = sent1.lower()
+        sent2 = sent2.lower()
+
+    # tokenize
+    sent1_token_ids = tokenizer.encode(sent1, return_tensors='pt')
+    sent2_token_ids = tokenizer.encode(sent2, return_tensors='pt')
+
+    # get spans of non-changing tokens
+    template1, template2 = get_span(sent1_token_ids[0], sent2_token_ids[0])
+
+    assert len(template1) == len(template2)
+
+    N = len(template1)  # num. of tokens that can be masked
+    mask_id = tokenizer.convert_tokens_to_ids(mask_token)
+    
+    # random masking
+    sent1_log_probs = 0.
+    sent2_log_probs = 0.
+    total_masked_tokens = 0
+    for i in range(N):
+        sent1_masked_token_ids = sent1_token_ids.clone().detach()
+        sent2_masked_token_ids = sent2_token_ids.clone().detach()
+
+        # mask n-gram tokens
+        for j in range(i, i+n):
+            if j == N:
+                break
+            sent1_masked_token_ids[0][template1[j]] = mask_id
+            sent2_masked_token_ids[0][template2[j]] = mask_id
+            total_masked_tokens += 1
+
+        _, score1 = compute_log_prob(sent1_masked_token_ids, sent1_token_ids, lm)
+        _, score2 = compute_log_prob(sent2_masked_token_ids, sent2_token_ids, lm)
+
+        sent1_log_probs += score1
+        sent2_log_probs += score2
+
+    score = {}
+    # average over iterations
+    score["sent1_score"] = sent1_log_probs
+    score["sent2_score"] = sent2_log_probs
+    # average score per masked token
+    score["sent1_token_score"] = sent1_log_probs / total_masked_tokens
+    score["sent2_token_score"] = sent2_log_probs / total_masked_tokens
+
+    return score
+
+
 def mask_predict(data, lm, T=10):
     """
     Score each sentence using mask-predict algorithm.
@@ -343,14 +408,25 @@ def evaluate(args):
                                       'sent1_token_score', 'sent2_token_score',])
 
     metric = baseline
+    n = 1
     if args.metric == "mask-predict":
         metric = mask_predict
     elif args.metric == "mask-random":
         metric = mask_random
+    elif args.metric == "mask-ngram":
+        metric = mask_ngram
+        if args.ngram:
+            ngram = args.ngram
+
 
     sent1, sent2, neutral = 0, 0, 0
     for index, data in df_data.iterrows():
-        score = metric(data, lm)
+        if args.metric == "mask-ngram":
+
+            score = metric(data, lm, ngram)
+        else:
+            score = metric(data, lm)
+
 
         for stype in score.keys():
             score[stype] = round(score[stype], 3)
@@ -374,7 +450,7 @@ def evaluate(args):
                                       'sent2_token_score': score['sent2_token_score']
                                       }, ignore_index=True)
 
-        print(index, best, sent1, sent2, neutral)
+        # print(index, best, sent1, sent2, neutral)
 
     df_score.to_csv(args.output_file)
     print("sent1:", sent1, round(sent1 / (sent1 + sent2 + neutral) * 100, 2))
@@ -388,7 +464,8 @@ def evaluate(args):
 parser = argparse.ArgumentParser()
 parser.add_argument("--input1", type=str, help="path to input file 1")
 parser.add_argument("--input2", type=str, help="path to input file 2")
-parser.add_argument("--metric", type=str, help="metric for scoring (baseline, mask-random, mask-predict)")
+parser.add_argument("--metric", type=str, help="metric for scoring (baseline, mask-random, mask-predict, mask-ngram)")
+parser.add_argument("--ngram", type=int, help="ngram (only for mask-ngram), default n=1")
 parser.add_argument("--lm_model", type=str, help="pretrained LM model to use")
 parser.add_argument("--output_file", type=str, help="path to output file")
 
