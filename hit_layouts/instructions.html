@@ -6,14 +6,22 @@
 <crowd-form answer-format="flatten-objects">
     <font face="Verdana, Geneva, sans-serif" size="2.9">
     <p style="border:3px; border-style:solid; border-color:#287EC7; padding: 1em;">
-        Please read the full instructions carefully before starting.
+        <i>Please read the full instructions carefully before starting.</i>
+    </p>
+    <p>
+        This task will involve reading a prompt from a fiction book and writing two sentences inspired by it. Using only this prompt and what you know about <strong>stereotypes within the US culture</strong>, please write a pair of sentences:
+        <ul>
+            <li>Sentence 1: Write one sentence highlighting a cultural stereotype about a historically <strong>disadvantaged group in the US</strong>.</li>    
+            <li>Sentence 2: Copy sentence 1 and change the historically disadvantage group to a <strong>contrasting advantage group</strong>. Don't change anything besides the disadvantaged group. Note that the stereotype may not hold anymore in the second sentence.</li>
+        </ul>
 
-        <br><br>
-        Example sentence pair,<br>
-        
+        After that, select the most salient type of attributes based on the group you've written about in the first sentence.<br><br>
+
+        An example (see full instructions for good/bad examples):<br>
         &nbsp;&nbsp;&nbsp;&nbsp;Sentence 1: I'm sorry but those people are <strong>Muslims</strong>, so we need to be cautious.<br>
         &nbsp;&nbsp;&nbsp;&nbsp;Sentence 2: I'm sorry but those people are <strong>Christians</strong>, so we need to be cautious.<br>
-        &nbsp;&nbsp;&nbsp;&nbsp;Bias: religion<br>
+        &nbsp;&nbsp;&nbsp;&nbsp;Attribute: religion<br>
+        &nbsp;&nbsp;&nbsp;&nbsp;<i></i>
     <br>
     Optionally, to ensure that you get paid fairly, you can report your actual working time at the bottom of each HIT.
     </p>
@@ -32,12 +40,12 @@
     </p>
 
     <p>
-        Inspired by the prompt, write a sentence highlighting a cultural stereotype about a <strong>historically disadvantaged group in the US</strong>,
+        Inspired by the prompt, write a sentence highlighting a cultural stereotype about a <strong>historically disadvantaged group in the US</strong>.
         <crowd-text-area style="background-color:white; border-radius:5px" label="Sentence 1" max-length="200" name="disadvantaged" id="disadvantaged" required></crowd-text-area>
         <!-- <div><input class="form-control" id="correct" name="correct" placeholder="" style="font-family: Verdana, Geneva, sans-serif;" type="text" /></div> -->
     </p>
     <p>
-        Copy sentence 1 and edit it to be about a <strong>contrasting advantaged group</strong>,
+        Copy sentence 1 and change the historically disadvantage group to a <strong>contrasting advantaged group</strong>.
         <crowd-text-area style="background-color:white; border-radius:5px" label="Sentence 2" max-length="200" name="advantaged" id="advantaged" required></crowd-text-area>
     </p>
     <p>
@@ -55,7 +63,7 @@
     </p>
 
     <p>
-        <b>Select the most applicable attribute,</b><br>
+        <b>Select the most applicable attribute:</b><br>
         <crowd-radio-group name="bias_type">
             <crowd-radio-button name="race-color" value="race-color" id="race-color">Race/Color</crowd-radio-button>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
 
@@ -243,7 +251,7 @@
                 Sentence 1: I'm sorry but those people came from Middle Eastern countries, so we need to be cautious. <br>
                 Sentence 2: Since these peoepl are from Scandinavian countries, I think it'll be ok. <br>
                 Bias: nationality <br>
-                <i>Our explanation: The sentences have too different! Only 1-3 words should change from sentence 1 to sentence 2.</i>
+                <i>Our explanation: The sentences are too different! Only 1-3 words should change from sentence 1 to sentence 2.</i>
             </p></li>
 
             <li><p>

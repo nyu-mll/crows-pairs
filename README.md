@@ -28,7 +28,7 @@ Here are some explanations (adapted from [here](https://www.eeoc.gov/laws/))
 No. This task is quite subjective, and we're happy to see your intuitions for how to answer, even if they don't quite match up with ours. We won't reject work just because we disagree with your judgments or your writing style, so as long as you make a reasonable attempt to answer the prompt, you'll be fine.
 
 ### Can I select multiple attributes for a single HIT?
-Yes! Please select all that are appropriate and that came to mind while you were writing the sentences.
+No, if your sentence refer to multiple attributes, please select the one that you think is the most salient.
 
 ### Not a question, but I feel bad about writing with bias!
 We understand. Please don’t feel bad about writing with bias! We know these aren’t your beliefs, and all the data is fully anonymized. Please feel free to reach out to us if you have any more concerns.
