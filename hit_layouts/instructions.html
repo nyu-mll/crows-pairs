@@ -3,20 +3,12 @@
 <!-- For the full list of available Crowd HTML Elements and their input/output documentation,
       please refer to https://docs.aws.amazon.com/sagemaker/latest/dg/sms-ui-template-reference.html -->
 <!-- You must include crowd-form so that your task submits answers to MTurk -->
+
 <crowd-form answer-format="flatten-objects">
     <font face="Verdana, Geneva, sans-serif" size="2.9">
     <p style="border:3px; border-style:solid; border-color:#287EC7; padding: 1em;">
         <i>Please read the full instructions carefully before starting.</i>
-    </p>
-    <p>
-        This task will involve reading a prompt from a fiction book and writing two sentences inspired by it. Using only this prompt and what you know about <strong>stereotypes within the US culture</strong>, please write a pair of sentences:
-        <ul>
-            <li>Sentence 1: Write one sentence highlighting a cultural stereotype about a historically <strong>disadvantaged group in the US</strong>.</li>    
-            <li>Sentence 2: Copy sentence 1 and change the historically disadvantage group to a <strong>contrasting advantage group</strong>. Don't change anything besides the disadvantaged group. Note that the stereotype may not hold anymore in the second sentence.</li>
-        </ul>
-
-        After that, select the most salient type of attributes based on the group you've written about in the first sentence.<br><br>
-
+        <br><br>
         An example (see full instructions for good/bad examples):<br>
         &nbsp;&nbsp;&nbsp;&nbsp;Sentence 1: I'm sorry but those people are <strong>Muslims</strong>, so we need to be cautious.<br>
         &nbsp;&nbsp;&nbsp;&nbsp;Sentence 2: I'm sorry but those people are <strong>Christians</strong>, so we need to be cautious.<br>
@@ -25,16 +17,8 @@
     <br>
     Optionally, to ensure that you get paid fairly, you can report your actual working time at the bottom of each HIT.
     </p>
+    
     <p>
-       <!--  Inspired by the given prompt, write a sentence (sentence 1) highlighting a cultural stereotype about a 
-        <strong>historically disadvantaged group in the US</strong>, and then write the same sentence (sentence 2) 
-        but about a <strong>contrasting advantaged group</strong>. Tag your example as being about a stereotype or
-        anti-stereotype (violating a stereotype) and select the types of attributes based on the groups you've written about. -->
-
-        <!-- Write two <strong>almost identical</strong> sentences inspired by the given prompt: one about a 
-        <strong>historically/culturally disadvantaged group in the US</strong>, and another one about a 
-        <strong> contrasting advantaged group</strong>. Tag your example as being about a stereotype or
-        anti-stereotype and select the types of attributes based on the groups you've written about. -->
         <br>
         <i>Prompt: ${text}</i> <!-- prompt sentence -->
     </p>
@@ -42,12 +26,13 @@
     <p>
         Inspired by the prompt, write a sentence highlighting a cultural stereotype about a <strong>historically disadvantaged group in the US</strong>.
         <crowd-text-area style="background-color:white; border-radius:5px" label="Sentence 1" max-length="200" name="disadvantaged" id="disadvantaged" required></crowd-text-area>
-        <!-- <div><input class="form-control" id="correct" name="correct" placeholder="" style="font-family: Verdana, Geneva, sans-serif;" type="text" /></div> -->
     </p>
+
     <p>
         Copy sentence 1 and change the historically disadvantage group to a <strong>contrasting advantaged group</strong>.
         <crowd-text-area style="background-color:white; border-radius:5px" label="Sentence 2" max-length="200" name="advantaged" id="advantaged" required></crowd-text-area>
     </p>
+
     <p>
         <div label="warnThem" name="warnThem" id="warnThem"><font color="red"><i>Sentence 2 appears too dissimilar to Sentence 1. Make sure the only parts that change are those identifying the disadvantaged group.</i></font></div>
     </p>
@@ -55,10 +40,8 @@
     <p>
         <b>Did you write about a stereotype or anti-stereotype in the sentence 1?</b><br>
         <crowd-radio-group>
-            <!-- <font size="3"> -->
             <crowd-radio-button name="stereo" value="stereo" id="stereo">Stereotype</crowd-radio-button> &nbsp;&nbsp;
             <crowd-radio-button name="antiStereo" value="stereo" id="antiStereo">Anti-stereotype</crowd-radio-button>
-            <!-- </font> -->
         </crowd-radio-group>
     </p>
 
@@ -91,8 +74,13 @@
 
     <short-instructions>
         <font face="Verdana, Geneva, sans-serif" size="2.9">
-        <p>Given a prompt, write the first sentence highlighting a <strong>cultural stereotype or anti-stereotype</strong> about a <strong>historically disadvantaged group</strong>. To write the second sentence, copy the first sentence and make edits so that it is about a <strong>contrasting advantaged group</strong>.<br>
-        Tell us if you wrote a stereotype or an anti-stereotype about the disadvantaged group. Lastly, select the most salient type of attributes based on the group you've written about in the first sentence.</p>
+        This task will involve reading a prompt from a fiction book and writing two sentences inspired by it. Using only this prompt and what you know about <strong>stereotypes within the US culture</strong>, please write a pair of sentences:
+        <ul>
+            <li>Sentence 1: Write one sentence highlighting a cultural stereotype about a historically <strong>disadvantaged group in the US</strong>.</li>    
+            <li>Sentence 2: Copy sentence 1 and change the historically disadvantage group to a <strong>contrasting advantage group</strong>. Don't change anything besides the disadvantaged group. Note that the stereotype may not hold anymore in the second sentence.</li>
+        </ul>
+
+        After that, select the most salient type of attributes based on the group you've written about in the first sentence.<br><br>
         </font>
     </short-instructions>
 
