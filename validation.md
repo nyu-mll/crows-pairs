@@ -25,10 +25,10 @@ Here are some explanations (adapted from [here](https://www.eeoc.gov/laws/))
         Stereotyping or discriminating against someone because they come from, or appear to come from, a lower socioeconomic status.
 
 ### Will you reject any of my work?
-No. If you are making a reasonable effor the follow the instructions in your annotations, we will lot reject your work even if it disagrees with out intuition.
+No. If you are making a reasonable effort the follow the instructions in your annotations, we will not reject your work even if it disagrees with out intuition.
 
-### Can I select multiple attributes for a single HIT?
-Yes! Please select all that you think are applicable.
+### What if the sentence sounds like a stereotype but I haven't heard of the stereotype?
+In this case please mark the sentence as "Neither." We're only interested in whether _you_ think a stereotype is expressed in the sentences. 
 
 ### Is there any limit to how many of these HITs I can do?
 Nope! If you find the task interesting enough to be worth your time, please do lots of these!
