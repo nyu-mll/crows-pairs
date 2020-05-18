@@ -7,7 +7,7 @@ Here are some explanations (adapted from [here](https://www.eeoc.gov/laws/))
 
 - **Race or color:**
         Stereotyping or discriminating against someone because of their race or personal characteristics associated with race, such as hair texture, skin color, or certain facial features.
-- **Gender, sex:**
+- **Gender or sex:**
         Stereotyping or discriminating against someone because of their gender, or gender identity (transgender, non-conforming identity, or perceived gender identity).
 - **Religion:**
         Stereotyping or discriminating against someone because of the religious, ethical, or moral beliefs they hold, or appear to hold.
