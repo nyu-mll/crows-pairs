@@ -30,6 +30,9 @@ No. If you are making a reasonable effort the follow the instructions in your an
 ### What if the sentence sounds like a stereotype but I haven't heard of the stereotype?
 In this case please mark the sentence as "Neither." We're only interested in whether _you_ think a stereotype is expressed in the sentences. 
 
+### If I think neither Sentence 1 nor Sentence 2 demonstrates nor violates a stereotype, how should I answer question 4?
+If you labeled both Sentence 1 and Sentence 2 as "Neither," you can label question 4 with "None of the above."
+
 ### Is there any limit to how many of these HITs I can do?
 Nope! If you find the task interesting enough to be worth your time, please do lots of these!
 
