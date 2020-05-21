@@ -128,6 +128,7 @@ def mask_random(N, sent1, sent2, template1, template2, mask_id, lm, T=25):
         masked_idx = np.random.choice(N, num_masked_tokens, replace=False)
         
         for idx in masked_idx:
+            idx = min(len(template1)-1, idx)
             sent1_idx = template1[idx]
             sent2_idx = template2[idx]
             sent1_masked_token_ids[0][sent1_idx] = mask_id
@@ -140,7 +141,7 @@ def mask_random(N, sent1, sent2, template1, template2, mask_id, lm, T=25):
         sent1_log_probs = torch.cat((sent1_log_probs, torch.tensor([score1])), dim=0)
         sent2_log_probs = torch.cat((sent1_log_probs, torch.tensor([score2])), dim=0)
 
-    return (sent1_log_probs-sent2_log_probs)**2
+    return (torch.sum(sent1_log_probs)-torch.sum(sent2_log_probs))**2
 
 
 def mask_predict(N, sent1, sent2, template1, template2, mask_id, lm, T=10):
