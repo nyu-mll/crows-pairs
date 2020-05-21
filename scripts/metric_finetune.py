@@ -70,7 +70,7 @@ def compute_log_prob(masked_token_ids, token_ids, lm):
         output = model(masked_token_ids)
         hidden_states = output[0].squeeze(0)
 
-    log_probs = torch.tensor([])
+    log_probs = torch.tensor([], requires_grad=True)
     mask_id = tokenizer.convert_tokens_to_ids(mask_token)
 
     # we only need log_prob for the MASK tokens
@@ -79,7 +79,7 @@ def compute_log_prob(masked_token_ids, token_ids, lm):
             hs = hidden_states[i]
             target_id = token_ids[0][i]
             score = log_softmax(hs)[target_id]
-            log_probs = torch.cat((log_probs, torch.tensor([score])), dim=0)
+            log_probs = torch.cat((log_probs, torch.tensor([score], requires_grad=True)), dim=0)
             # sum_log_probs += log_softmax(hs)[target_id].item()
 
     return log_probs, torch.sum(log_probs)
@@ -121,16 +121,16 @@ def mask_random(N, sent1, sent2, template1, template2, mask_id, lm, T=25):
     mask_prob = 0.15
     total_masked_tokens = 0
     
-    sent1_log_probs = torch.tensor([])
-    sent2_log_probs = torch.tensor([])
+    sent1_log_probs = torch.tensor([], requires_grad=True)
+    sent2_log_probs = torch.tensor([], requires_grad=True)
     num_masked_tokens = max(1, math.ceil(mask_prob * N))
     for t in range(T):
         masked_idx = np.random.choice(N, num_masked_tokens, replace=False)
         
         for idx in masked_idx:
             idx = min(len(template1)-1, idx)
-            sent1_idx = template1[idx]
-            sent2_idx = template2[idx]
+            sent1_idx = min(template1[idx], len(sent1_masked_token_ids[0])) # sometimes out of bounds, idk why
+            sent2_idx = min(template2[idx], len(sent2_masked_token_ids[0]))
             sent1_masked_token_ids[0][sent1_idx] = mask_id
             sent2_masked_token_ids[0][sent2_idx] = mask_id
             total_masked_tokens += 1
@@ -138,8 +138,8 @@ def mask_random(N, sent1, sent2, template1, template2, mask_id, lm, T=25):
         _, score1 = compute_log_prob(sent1_masked_token_ids, sent1_token_ids, lm)
         _, score2 = compute_log_prob(sent2_masked_token_ids, sent2_token_ids, lm)
 
-        sent1_log_probs = torch.cat((sent1_log_probs, torch.tensor([score1])), dim=0)
-        sent2_log_probs = torch.cat((sent1_log_probs, torch.tensor([score2])), dim=0)
+        sent1_log_probs = torch.cat((sent1_log_probs, torch.tensor([score1], requires_grad=True)), dim=0)
+        sent2_log_probs = torch.cat((sent1_log_probs, torch.tensor([score2], requires_grad=True)), dim=0)
 
     return (torch.sum(sent1_log_probs)-torch.sum(sent2_log_probs))**2
 
@@ -158,9 +158,9 @@ def mask_predict(N, sent1, sent2, template1, template2, mask_id, lm, T=10):
     sent2_masked_token_ids = sent2_token_ids.clone()
 
     total_unmasked_tokens = 0
-    sent1_log_probs = torch.tensor([])
-    sent2_log_probs = torch.tensor([])
-    log_probs1, log_probs2 = torch.tensor([]), torch.tensor([])
+    sent1_log_probs = torch.tensor([], requires_grad=True)
+    sent2_log_probs = torch.tensor([], requires_grad=True)
+    log_probs1, log_probs2 = torch.tensor([], requires_grad=True), torch.tensor([], requires_grad=True)
     for t in range(T):
         num_unmasked_tokens = int(N - (N * ((T - t) / T)))
         masked_idx = np.random.choice(N, num_unmasked_tokens, replace=False)
@@ -192,8 +192,8 @@ def mask_predict(N, sent1, sent2, template1, template2, mask_id, lm, T=10):
         log_probs1, score1 = compute_log_prob(sent1_masked_token_ids, sent1_token_ids, lm)
         log_probs2, score2 = compute_log_prob(sent2_masked_token_ids, sent2_token_ids, lm)
 
-        sent1_log_probs = torch.cat((sent1_log_probs, torch.tensor([score1])), dim=0)
-        sent2_log_probs = torch.cat((sent1_log_probs, torch.tensor([score2])), dim=0)
+        sent1_log_probs = torch.cat((sent1_log_probs, torch.tensor([score1], requires_grad=True)), dim=0)
+        sent2_log_probs = torch.cat((sent1_log_probs, torch.tensor([score2], requires_grad=True)), dim=0)
 
         # stop if all tokens already unmasked
         if total_unmasked_tokens == N:
@@ -286,16 +286,16 @@ def get_dataloader(train_df, tokenizer, uncased, mask_token):
     train_dataset = my_dataset(N_list, sent1_list, sent2_list, template1_list, template2_list, mask_id_list)
     train_dataloader = DataLoader(
         train_dataset,
-        shuffle=True,
         batch_size=16
     )
     return train_dataloader
 
 def batchloss(metric, N, sent1, sent2, template1, template2, mask_id, lm):
-    losses = torch.tensor([])
-    for i in range(len(N)):
+    losses = torch.tensor([], requires_grad=True)
+    length = min([len(N), len(sent1), len(sent2), len(template1), len(template2), len(mask_id)]) # this is a hack because the DataLoader sometimes gives fewer templates idk why
+    for i in range(length):
         loss = metric(N[i], sent1[i], sent2[i], template1[i], template2[i], mask_id[i], lm)
-        losses = torch.cat((losses, torch.tensor([loss])), dim=0)
+        losses = torch.cat((losses, torch.tensor([loss], requires_grad=True)), dim=0)
     return torch.sum(losses)
 
 
@@ -338,7 +338,7 @@ def evaluate(args):
             print('======== Epoch {:} / {:} ========'.format(epoch_i + 1, epochs))
             total_train_loss = 0
             lm['model'].train()
-            for step, batch in enumerate(train_dataloader):
+            for batch in train_dataloader:
                 lm['model'].zero_grad()
                 if torch.cuda.is_available():
                     device = torch.device("cuda")
@@ -353,7 +353,7 @@ def evaluate(args):
                 loss = batchloss(metric, N, sent1, sent2, template1, template2, mask_id, lm)
                 total_train_loss += loss.item()
                 loss.backward()
-                clip_grad_norm(lm['model'].parameters(), 1.0)
+                # clip_grad_norm(lm['model'].parameters(), 1.0)
                 optimizer.step()
                 scheduler.step()
             avg_train_loss = total_train_loss / len(train_dataloader)
