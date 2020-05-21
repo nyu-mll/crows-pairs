@@ -300,7 +300,6 @@ def batchloss(metric, N, sent1, sent2, template1, template2, mask_id, lm):
 
 def evaluate(args):
 
-    print("Evaluating:")
     print("Input1:", args.input1)
     print("Input2:", args.input2)
     print("Metric:", args.metric)
