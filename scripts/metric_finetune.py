@@ -129,8 +129,8 @@ def mask_random(N, sent1, sent2, template1, template2, mask_id, lm, T=25):
         
         for idx in masked_idx:
             idx = min(len(template1)-1, idx)
-            sent1_idx = min(template1[idx], len(sent1_masked_token_ids[0])) # sometimes out of bounds, idk why
-            sent2_idx = min(template2[idx], len(sent2_masked_token_ids[0]))
+            sent1_idx = min(template1[idx], len(sent1_masked_token_ids[0])-1) # sometimes out of bounds, idk why
+            sent2_idx = min(template2[idx], len(sent2_masked_token_ids[0])-1)
             sent1_masked_token_ids[0][sent1_idx] = mask_id
             sent2_masked_token_ids[0][sent2_idx] = mask_id
             total_masked_tokens += 1
@@ -379,7 +379,7 @@ def evaluate(args):
             avg_val_loss = total_eval_loss / len(test_dataloader)
             print("  Validation Loss: {0:.2f}".format(avg_val_loss))
 
-    fold += 1
+        fold += 1
 
 
 
