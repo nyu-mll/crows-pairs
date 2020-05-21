@@ -295,7 +295,7 @@ def batchloss(metric, N, sent1, sent2, template1, template2, mask_id, lm):
     losses = torch.tensor([])
     for i in range(len(N)):
         loss = metric(N[i], sent1[i], sent2[i], template1[i], template2[i], mask_id[i], lm)
-        losses = torch.cat((losses, loss), dim=0)
+        losses = torch.cat((losses, torch.tensor([loss])), dim=0)
     return torch.sum(losses)
 
 
