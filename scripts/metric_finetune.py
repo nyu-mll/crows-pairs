@@ -1,7 +1,6 @@
 # To run:
-# python metric.py --input1 [path_file1] --input2 [path_file2] --metric [metric] --lm_model [model]
-# input1 and input2 should have the same number of sentences
-# the format is (sent_id sentences), separated by a white space
+# python metric.py --input_file [path_file] --metric [metric] --lm_model [model]
+# input_file is path to input as CSV
 # metric: options are {mask-random, mask-predict}
 # model: options are {bert, roberta, albert}
 
@@ -14,6 +13,7 @@ import difflib
 import logging
 import numpy as np
 import pandas as pd
+import csv
 
 from sklearn.model_selection import KFold
 import torch.optim as optim
@@ -27,28 +27,23 @@ from transformers import AdamW, get_linear_schedule_with_warmup
 from collections import defaultdict
 
 
-def read_data(input_file1, input_file2):
+def read_data(input_file):
     """
     Load data into panda DataFrame format.
-    Each file should have format (separated by a white-space):
-    sent_id sentence
     """
     
-    df_data = pd.DataFrame(columns=['id', 'sent1', 'sent2'])
+    df_data = pd.DataFrame(columns=['sent1', 'sent2', 'direction'])
     
-    data1 = [x.strip().split() for x in open(input_file1, 'r').readlines()]
-    data2 = [x.strip().split() for x in open(input_file2, 'r').readlines()]
-
-    assert len(data1) == len(data2)
-
-    for sent1, sent2 in zip(data1, data2):
-        sent_id = 'sent_' + sent1[0]
-
-        df_item = {'id': sent_id,
-                   'sent1': ' '.join(sent1[1:]),
-                   'sent2': ' '.join(sent2[1:])}
-
-        df_data = df_data.append(df_item, ignore_index=True)
+    with open(input_file) as f:
+        reader = csv.DictReader(f)
+        for row in reader:
+            if row['gold-direction'] == 'stereo':
+                df_item = {'sent1': row['disadvantaged'],
+                           'sent2': row['advantaged']}
+            else:
+                df_item = {'sent1': row['advantaged'],
+                           'sent2': row['disadvantaged']}
+            df_data = df_data.append(df_item, ignore_index=True)
 
     return df_data
 
@@ -104,6 +99,57 @@ def get_span(seq1, seq2):
     return template1, template2
 
 
+def mask_ngram(N, sent1, sent2, template1, template2, mask_id, lm, n=1):
+    """
+    Score each sentence by masking one word at a time.
+    The score for a sentence is the sum of log probability of each word in
+    the sentence.
+    n = n-gram of token that is masked, if n > 1, we mask tokens with overlapping
+    n-grams.
+    """
+    model = lm["model"]
+    tokenizer = lm["tokenizer"]
+    log_softmax = lm["log_softmax"]
+    mask_token = lm["mask_token"]
+    uncased = lm["uncased"]
+
+    sent1, sent2 = data["sent1"], data["sent2"]
+
+    if uncased:
+        sent1 = sent1.lower()
+        sent2 = sent2.lower()
+
+    # tokenize
+    sent1_token_ids = tokenizer.encode(sent1, return_tensors='pt')
+    sent2_token_ids = tokenizer.encode(sent2, return_tensors='pt')
+
+
+    
+    # random masking
+    sent1_log_probs = torch.tensor([], requires_grad=True)
+    sent2_log_probs = torch.tensor([], requires_grad=True)
+    total_masked_tokens = 0
+    for i in range(N):
+        sent1_masked_token_ids = sent1_token_ids.clone()
+        sent2_masked_token_ids = sent2_token_ids.clone()
+
+        # mask n-gram tokens
+        for j in range(i, i+n):
+            if j == N:
+                break
+            sent1_masked_token_ids[0][template1[j]] = mask_id
+            sent2_masked_token_ids[0][template2[j]] = mask_id
+            total_masked_tokens += 1
+
+        _, score1 = compute_log_prob(sent1_masked_token_ids, sent1_token_ids, lm)
+        _, score2 = compute_log_prob(sent2_masked_token_ids, sent2_token_ids, lm)
+
+        sent1_log_probs = torch.cat((sent1_log_probs, torch.tensor([score1], requires_grad=True)), dim=0)
+        sent2_log_probs = torch.cat((sent1_log_probs, torch.tensor([score2], requires_grad=True)), dim=0)
+
+    return (torch.sum(sent1_log_probs)-torch.sum(sent2_log_probs))**2
+
+
 def mask_random(N, sent1, sent2, template1, template2, mask_id, lm, T=25):
     """
     Score each sentence using mask-random algorithm, following BERT masking algorithm.
@@ -115,9 +161,6 @@ def mask_random(N, sent1, sent2, template1, template2, mask_id, lm, T=25):
     sent1_token_ids = lm['tokenizer'].encode(sent1, return_tensors = 'pt')
     sent2_token_ids = lm['tokenizer'].encode(sent2, return_tensors = 'pt')
 
-    sent1_masked_token_ids = sent1_token_ids.clone()
-    sent2_masked_token_ids = sent2_token_ids.clone()
-
     mask_prob = 0.15
     total_masked_tokens = 0
     
@@ -126,10 +169,13 @@ def mask_random(N, sent1, sent2, template1, template2, mask_id, lm, T=25):
     num_masked_tokens = max(1, math.ceil(mask_prob * N))
     for t in range(T):
         masked_idx = np.random.choice(N, num_masked_tokens, replace=False)
+
+        sent1_masked_token_ids = sent1_token_ids.clone()
+        sent2_masked_token_ids = sent2_token_ids.clone()
         
         for idx in masked_idx:
             idx = min(len(template1)-1, idx)
-            sent1_idx = min(template1[idx], len(sent1_masked_token_ids[0])-1) # sometimes out of bounds, idk why
+            sent1_idx = min(template1[idx], len(sent1_masked_token_ids[0])-1) # do min because sometimes equals the length, idk why
             sent2_idx = min(template2[idx], len(sent2_masked_token_ids[0])-1)
             sent1_masked_token_ids[0][sent1_idx] = mask_id
             sent2_masked_token_ids[0][sent2_idx] = mask_id
@@ -284,6 +330,7 @@ def get_dataloader(train_df, tokenizer, uncased, mask_token):
         mask_id_list.append(mask_id)
 
     train_dataset = my_dataset(N_list, sent1_list, sent2_list, template1_list, template2_list, mask_id_list)
+    print(str(len(train_dataset)))
     train_dataloader = DataLoader(
         train_dataset,
         batch_size=16
@@ -301,17 +348,16 @@ def batchloss(metric, N, sent1, sent2, template1, template2, mask_id, lm):
 
 def evaluate(args):
 
-    print("Input1:", args.input1)
-    print("Input2:", args.input2)
+    print("Input:", args.input_file)
     print("Metric:", args.metric)
     print("Model:", args.lm_model)
     print("=" * 100)
 
     logging.basicConfig(level=logging.INFO)
 
-    df_data = read_data(args.input1, args.input2)
+    df_data = read_data(args.input_file)
 
-    metric = mask_random
+    metric = mask_ngram
     if args.metric == "mask-predict":
         metric = mask_predict
     elif args.metric == "mask-random":
@@ -384,8 +430,7 @@ def evaluate(args):
 
 
 parser = argparse.ArgumentParser()
-parser.add_argument("--input1", type=str, help="path to input file 1")
-parser.add_argument("--input2", type=str, help="path to input file 2")
+parser.add_argument("--input_file", type=str, help="path to input file")
 parser.add_argument("--metric", type=str, help="metric for scoring (mask-random, mask-predict)")
 parser.add_argument("--lm_model", type=str, help="pretrained LM model to use")
 

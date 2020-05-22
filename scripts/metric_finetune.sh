@@ -7,15 +7,17 @@ pip install --user pandas
 pip install --user transformers
 
 
-python metric_finetune.py --input1 data/bibimbap/pro_stereotyped.txt.dev --input2 data/bibimbap/anti_stereotyped.txt.dev --metric mask-random --lm_model bert
-python metric_finetune.py --input1 data/bibimbap/pro_stereotyped.txt.dev --input2 data/bibimbap/anti_stereotyped.txt.dev --metric mask-predict --lm_model bert
+python metric_finetune.py --input_file data/filtered_lmBias_data.csv --metric mask-random --lm_model bert
+python metric_finetune.py --input_file data/filtered_lmBias_data.csv --metric mask-predict --lm_model bert
+python metric_finetune.py --input_file data/filtered_lmBias_data.csv --metric mask-ngram --lm_model bert
 
-python metric_finetune.py --input1 data/bibimbap/pro_stereotyped.txt.dev --input2 data/bibimbap/anti_stereotyped.txt.dev --metric mask-random --lm_model roberta
-python metric_finetune.py --input1 data/bibimbap/pro_stereotyped.txt.dev --input2 data/bibimbap/anti_stereotyped.txt.dev --metric mask-predict --lm_model roberta
+python metric_finetune.py --input_file data/filtered_lmBias_data.csv --metric mask-random --lm_model roberta
+python metric_finetune.py --input_file data/filtered_lmBias_data.csv --metric mask-predict --lm_model roberta
+python metric_finetune.py --input_file data/filtered_lmBias_data.csv --metric mask-ngram --lm_model roberta
 
-python metric_finetune.py --input1 data/bibimbap/pro_stereotyped.txt.dev --input2 data/bibimbap/anti_stereotyped.txt.dev --metric mask-random --lm_model albert
-python metric_finetune.py --input1 data/bibimbap/pro_stereotyped.txt.dev --input2 data/bibimbap/anti_stereotyped.txt.dev --metric mask-predict --lm_model albert
+python metric_finetune.py --input_file data/filtered_lmBias_data.csv --metric mask-random --lm_model albert
+python metric_finetune.py --input_file data/filtered_lmBias_data.csv --metric mask-predict --lm_model albert
+python metric_finetune.py --input_file data/filtered_lmBias_data.csv --metric mask-ngram --lm_model albert
 
 # sbatch --mail-user=rvb255@nyu.edu --mail-type=ALL --mem=8GB --gres=gpu:1 --time="7-0" metric_finetune.sh
-
-# python metric_finetune.py --input1 data/banana_advantage/advantage.txt --input2 data/banana_advantage/banana.txt --metric mask-random --lm_model bert
+# python metric_finetune.py --input_file data/banana_advantage.csv --metric mask-random --lm_model bert
