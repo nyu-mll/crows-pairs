@@ -300,6 +300,7 @@ class my_dataset(Dataset):
     def __len__(self):
         return len(self.N)
 
+
 def get_dataloader(train_df, tokenizer, uncased, mask_token):
     N_list = []
     sent1_list = []
@@ -330,16 +331,17 @@ def get_dataloader(train_df, tokenizer, uncased, mask_token):
         mask_id_list.append(mask_id)
 
     train_dataset = my_dataset(N_list, sent1_list, sent2_list, template1_list, template2_list, mask_id_list)
-    print(str(len(train_dataset)))
     train_dataloader = DataLoader(
         train_dataset,
         batch_size=16
     )
-    return train_dataloader
+    # return train_dataloader
+    return train_dataset
 
 def batchloss(metric, N, sent1, sent2, template1, template2, mask_id, lm):
     losses = torch.tensor([], requires_grad=True)
-    length = min([len(N), len(sent1), len(sent2), len(template1), len(template2), len(mask_id)]) # this is a hack because the DataLoader sometimes gives fewer templates idk why
+    # length = min([len(N), len(sent1), len(sent2), len(template1), len(template2), len(mask_id)]) # this is a hack because the DataLoader sometimes gives fewer templates idk why
+    length = len(N)
     for i in range(length):
         loss = metric(N[i], sent1[i], sent2[i], template1[i], template2[i], mask_id[i], lm)
         losses = torch.cat((losses, torch.tensor([loss], requires_grad=True)), dim=0)
@@ -378,24 +380,27 @@ def evaluate(args):
 
         optimizer = AdamW(lm['model'].parameters(), lr = 2e-5, eps = 1e-8)
         epochs = 2
+        batch_size = 16
         scheduler = get_linear_schedule_with_warmup(optimizer, num_warmup_steps=0, num_training_steps = len(train_dataloader) * epochs)
 
         for epoch_i in range(0, epochs):
             print('======== Epoch {:} / {:} ========'.format(epoch_i + 1, epochs))
             total_train_loss = 0
             lm['model'].train()
-            for batch in train_dataloader:
+            # for batch in train_dataloader:
+            for batchnum in range(math.floor(len(train_dataloader)/batch_size)):
+                batch = [[],[],[],[],[],[]]
+                for n in range(batchnum*batch_size, (batchnum+1)*batch_size):
+                    item = train_dataloader[n]
+                    for i in range(6):
+                        batch[i].append(item[i])
+
                 lm['model'].zero_grad()
                 if torch.cuda.is_available():
                     device = torch.device("cuda")
                 else:
                     device = torch.device("cpu")
-                N = batch[0]
-                sent1 = batch[1]
-                sent2 = batch[2]
-                template1 = batch[3]
-                template2 = batch[4]
-                mask_id = batch[5]
+                [N, sent1, sent2, template1, template2, mask_id] = batch
                 loss = batchloss(metric, N, sent1, sent2, template1, template2, mask_id, lm)
                 total_train_loss += loss.item()
                 loss.backward()
@@ -408,18 +413,20 @@ def evaluate(args):
             lm['model'].eval()
             total_eval_loss = 0
             nb_eval_steps = 0
-            for batch in test_dataloader:
+            # for batch in test_dataloader:
+            for batchnum in range(math.floor(len(test_dataloader)/batch_size)):
+                batch = [[],[],[],[],[],[]]
+                for n in range(batchnum*batch_size, (batchnum+1)*batch_size):
+                    item = test_dataloader[n]
+                    for i in range(6):
+                        batch[i].append(item[i])
+
                 with torch.no_grad():
                     if torch.cuda.is_available():
                         device = torch.device("cuda")
                     else:
                         device = torch.device("cpu")
-                    N = batch[0]
-                    sent1 = batch[1]
-                    sent2 = batch[2]
-                    template1 = batch[3]
-                    template2 = batch[4]
-                    mask_id = batch[5]
+                    [N, sent1, sent2, template1, template2, mask_id] = batch
                     loss = batchloss(metric, N, sent1, sent2, template1, template2, mask_id, lm)
                     total_eval_loss += loss.item()
             avg_val_loss = total_eval_loss / len(test_dataloader)
