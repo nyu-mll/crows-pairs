@@ -99,7 +99,7 @@ def get_span(seq1, seq2):
     return template1, template2
 
 
-def mask_ngram(N, sent1, sent2, template1, template2, mask_id, lm, n=1):
+def mask_ngram(sent1, sent2, mask_id, lm, n=1):
     """
     Score each sentence by masking one word at a time.
     The score for a sentence is the sum of log probability of each word in
@@ -123,7 +123,8 @@ def mask_ngram(N, sent1, sent2, template1, template2, mask_id, lm, n=1):
     sent1_token_ids = tokenizer.encode(sent1, return_tensors='pt')
     sent2_token_ids = tokenizer.encode(sent2, return_tensors='pt')
 
-
+    template1, template2 = get_span(sent1_token_ids[0], sent2_token_ids[0])
+    N = len(template1)
     
     # random masking
     sent1_log_probs = torch.tensor([], requires_grad=True)
@@ -150,7 +151,7 @@ def mask_ngram(N, sent1, sent2, template1, template2, mask_id, lm, n=1):
     return (torch.sum(sent1_log_probs)-torch.sum(sent2_log_probs))**2
 
 
-def mask_random(N, sent1, sent2, template1, template2, mask_id, lm, T=25):
+def mask_random(sent1, sent2, mask_id, lm, T=25):
     """
     Score each sentence using mask-random algorithm, following BERT masking algorithm.
     For each iteration, we randomly masked 15% of subword tokens output by model's tokenizer.
@@ -161,11 +162,15 @@ def mask_random(N, sent1, sent2, template1, template2, mask_id, lm, T=25):
     sent1_token_ids = lm['tokenizer'].encode(sent1, return_tensors = 'pt')
     sent2_token_ids = lm['tokenizer'].encode(sent2, return_tensors = 'pt')
 
+    template1, template2 = get_span(sent1_token_ids[0], sent2_token_ids[0])
+    N = len(template1)
+
     mask_prob = 0.15
     total_masked_tokens = 0
     
     sent1_log_probs = torch.tensor([], requires_grad=True)
     sent2_log_probs = torch.tensor([], requires_grad=True)
+
     num_masked_tokens = max(1, math.ceil(mask_prob * N))
     for t in range(T):
         masked_idx = np.random.choice(N, num_masked_tokens, replace=False)
@@ -175,8 +180,8 @@ def mask_random(N, sent1, sent2, template1, template2, mask_id, lm, T=25):
         
         for idx in masked_idx:
             idx = min(len(template1)-1, idx)
-            sent1_idx = min(template1[idx], len(sent1_masked_token_ids[0])-1) # do min because sometimes equals the length, idk why
-            sent2_idx = min(template2[idx], len(sent2_masked_token_ids[0])-1)
+            sent1_idx = template1[idx]
+            sent2_idx = template2[idx]
             sent1_masked_token_ids[0][sent1_idx] = mask_id
             sent2_masked_token_ids[0][sent2_idx] = mask_id
             total_masked_tokens += 1
@@ -190,7 +195,7 @@ def mask_random(N, sent1, sent2, template1, template2, mask_id, lm, T=25):
     return (torch.sum(sent1_log_probs)-torch.sum(sent2_log_probs))**2
 
 
-def mask_predict(N, sent1, sent2, template1, template2, mask_id, lm, T=10):
+def mask_predict(sent1, sent2, mask_id, lm, T=10):
     """
     Score each sentence using mask-predict algorithm.
     For each iteration, we unmask n words until all the words are unmasked.
@@ -199,6 +204,9 @@ def mask_predict(N, sent1, sent2, template1, template2, mask_id, lm, T=10):
 
     sent1_token_ids = lm['tokenizer'].encode(sent1, return_tensors = 'pt')
     sent2_token_ids = lm['tokenizer'].encode(sent2, return_tensors = 'pt')
+
+    template1, template2 = get_span(sent1_token_ids[0], sent2_token_ids[0])
+    N = len(template1)
 
     sent1_masked_token_ids = sent1_token_ids.clone()
     sent2_masked_token_ids = sent2_token_ids.clone()
@@ -281,32 +289,23 @@ def get_lm(lm_model):
     }
 
 class my_dataset(Dataset):
-    def __init__(self, N_list, sent1_list, sent2_list, template1_list, template2_list, mask_id_list):
-        self.N = N_list
+    def __init__(self, sent1_list, sent2_list, mask_id_list):
         self.sent1 = sent1_list
         self.sent2 = sent2_list
-        self.template1 = template1_list
-        self.template2 = template2_list
         self.mask_id = mask_id_list
 
     def __getitem__(self, index):
-        return [self.N[index],
-                self.sent1[index],
+        return [self.sent1[index],
                 self.sent2[index],
-                self.template1[index],
-                self.template2[index],
                 self.mask_id[index]]
 
     def __len__(self):
-        return len(self.N)
+        return len(self.sent1)
 
 
 def get_dataloader(train_df, tokenizer, uncased, mask_token):
-    N_list = []
     sent1_list = []
     sent2_list = []
-    template1_list = []
-    template2_list = []
     mask_id_list = []
 
     for index, row in train_df.iterrows():
@@ -316,34 +315,23 @@ def get_dataloader(train_df, tokenizer, uncased, mask_token):
             sent1 = sent1.lower()
             sent2 = sent2.lower()
 
-        sent1_token_ids = tokenizer.encode(sent1, return_tensors = 'pt')
-        sent2_token_ids = tokenizer.encode(sent2, return_tensors = 'pt')
-
-        template1, template2 = get_span(sent1_token_ids[0], sent2_token_ids[0])
         mask_id = tokenizer.convert_tokens_to_ids(mask_token)
-        N = len(template1)
-        
-        N_list.append(N)
+
         sent1_list.append(sent1)
         sent2_list.append(sent2)
-        template1_list.append(template1)
-        template2_list.append(template2)
         mask_id_list.append(mask_id)
 
-    train_dataset = my_dataset(N_list, sent1_list, sent2_list, template1_list, template2_list, mask_id_list)
+    train_dataset = my_dataset(sent1_list, sent2_list, mask_id_list)
     train_dataloader = DataLoader(
         train_dataset,
         batch_size=16
     )
-    # return train_dataloader
-    return train_dataset
+    return train_dataloader
 
-def batchloss(metric, N, sent1, sent2, template1, template2, mask_id, lm):
+def batchloss(metric, sent1, sent2, mask_id, lm):
     losses = torch.tensor([], requires_grad=True)
-    # length = min([len(N), len(sent1), len(sent2), len(template1), len(template2), len(mask_id)]) # this is a hack because the DataLoader sometimes gives fewer templates idk why
-    length = len(N)
-    for i in range(length):
-        loss = metric(N[i], sent1[i], sent2[i], template1[i], template2[i], mask_id[i], lm)
+    for i in range(len(sent1)):
+        loss = metric(sent1[i], sent2[i], mask_id[i], lm)
         losses = torch.cat((losses, torch.tensor([loss], requires_grad=True)), dim=0)
     return torch.sum(losses)
 
@@ -387,21 +375,14 @@ def evaluate(args):
             print('======== Epoch {:} / {:} ========'.format(epoch_i + 1, epochs))
             total_train_loss = 0
             lm['model'].train()
-            # for batch in train_dataloader:
-            for batchnum in range(math.floor(len(train_dataloader)/batch_size)):
-                batch = [[],[],[],[],[],[]]
-                for n in range(batchnum*batch_size, (batchnum+1)*batch_size):
-                    item = train_dataloader[n]
-                    for i in range(6):
-                        batch[i].append(item[i])
-
+            for batch in train_dataloader:
                 lm['model'].zero_grad()
                 if torch.cuda.is_available():
                     device = torch.device("cuda")
                 else:
                     device = torch.device("cpu")
-                [N, sent1, sent2, template1, template2, mask_id] = batch
-                loss = batchloss(metric, N, sent1, sent2, template1, template2, mask_id, lm)
+                [sent1, sent2, mask_id] = batch
+                loss = batchloss(metric, sent1, sent2, mask_id, lm)
                 total_train_loss += loss.item()
                 loss.backward()
                 # clip_grad_norm(lm['model'].parameters(), 1.0)
@@ -413,21 +394,14 @@ def evaluate(args):
             lm['model'].eval()
             total_eval_loss = 0
             nb_eval_steps = 0
-            # for batch in test_dataloader:
-            for batchnum in range(math.floor(len(test_dataloader)/batch_size)):
-                batch = [[],[],[],[],[],[]]
-                for n in range(batchnum*batch_size, (batchnum+1)*batch_size):
-                    item = test_dataloader[n]
-                    for i in range(6):
-                        batch[i].append(item[i])
-
+            for batch in test_dataloader:
                 with torch.no_grad():
                     if torch.cuda.is_available():
                         device = torch.device("cuda")
                     else:
                         device = torch.device("cpu")
-                    [N, sent1, sent2, template1, template2, mask_id] = batch
-                    loss = batchloss(metric, N, sent1, sent2, template1, template2, mask_id, lm)
+                    [sent1, sent2, mask_id] = batch
+                    loss = batchloss(metric, sent1, sent2, mask_id, lm)
                     total_eval_loss += loss.item()
             avg_val_loss = total_eval_loss / len(test_dataloader)
             print("  Validation Loss: {0:.2f}".format(avg_val_loss))
