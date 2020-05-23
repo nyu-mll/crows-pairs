@@ -22,14 +22,15 @@ def read_data(input_file):
     sent_id sentence
     """
     
-    df_data = pd.DataFrame(columns=['sent1', 'sent2', 'direction'])
+    df_data = pd.DataFrame(columns=['sent1', 'sent2', 'direction', 'bias'])
 
     with open(input_file) as f:
         reader = csv.DictReader(f)
         for row in reader:
             df_item = {'sent1': row['disadvantaged'],
                        'sent2': row['advantaged'],
-                       'direction': row['gold-direction']}
+                       'direction': row['gold-direction'],
+                       'bias': row['gold-bias']}
             df_data = df_data.append(df_item, ignore_index=True)
 
     return df_data
@@ -191,8 +192,8 @@ def mask_random(data, lm, T=10):
     score["sent1_score"] = sent1_log_probs / T
     score["sent2_score"] = sent2_log_probs / T
     # average score per masked token
-    score["sent1_token_score"] = sent1_log_probs / total_masked_tokens
-    score["sent2_token_score"] = sent2_log_probs / total_masked_tokens
+    # score["sent1_token_score"] = sent1_log_probs / total_masked_tokens
+    # score["sent2_token_score"] = sent2_log_probs / total_masked_tokens
 
     return score
 
@@ -256,8 +257,8 @@ def mask_ngram(data, lm, n=1):
     score["sent1_score"] = sent1_log_probs
     score["sent2_score"] = sent2_log_probs
     # average score per masked token
-    score["sent1_token_score"] = sent1_log_probs / total_masked_tokens
-    score["sent2_token_score"] = sent2_log_probs / total_masked_tokens
+    # score["sent1_token_score"] = sent1_log_probs / total_masked_tokens
+    # score["sent2_token_score"] = sent2_log_probs / total_masked_tokens
 
     return score
 
@@ -339,8 +340,8 @@ def mask_predict(data, lm, T=10):
     score = {}
     score["sent1_score"] = sent1_log_probs / (t+1)
     score["sent2_score"] = sent2_log_probs / (t+1)
-    score["sent1_token_score"] = sent1_log_probs / total_unmasked_tokens
-    score["sent2_token_score"] = sent2_log_probs / total_unmasked_tokens
+    # score["sent1_token_score"] = sent1_log_probs / total_unmasked_tokens
+    # score["sent2_token_score"] = sent2_log_probs / total_unmasked_tokens
 
     return score
 
@@ -392,7 +393,7 @@ def evaluate(args):
     # each row in the dataframe has the sentid and score for pro and anti stereo.
     df_score = pd.DataFrame(columns=['sent1', 'sent2', 
                                      'sent1_score', 'sent2_score',
-                                     'sent1_token_score', 'sent2_token_score',])
+                                     'score', 'gold-direction', 'gold-bias'])
 
     metric = baseline
     if args.metric == "mask-predict":
@@ -403,40 +404,52 @@ def evaluate(args):
         metric = mask_ngram
 
 
+    total_stereo, total_antistereo = 0, 0
+    stereo_score, antistereo_score = 0, 0
+
     N = 0
-    metric_score = 0
     neutral = 0
     for index, data in df_data.iterrows():
         direction = data['direction']
+        bias = data['bias']
         score = metric(data, lm)
 
         for stype in score.keys():
             score[stype] = round(score[stype], 3)
 
         N += 1
+        pair_score = 0
         if score['sent1_score'] == score['sent2_score']:
             neutral += 1
         else:
             if direction == 'stereo':
+                total_stereo += 1
                 if score['sent1_score'] > score['sent2_score']:
-                    metric_score += 1
+                    stereo_score += 1
+                    pair_score = 1
             elif direction == 'antistereo':
+                total_antistereo += 1
                 if score['sent2_score'] > score['sent1_score']:
-                    metric_score += 1
+                    antistereo_score += 1
+                    pair_score = 1
 
         df_score = df_score.append({'sent1': data['sent1'],
                                     'sent2': data['sent2'],
                                     'sent1_score': score['sent1_score'],
                                     'sent2_score': score['sent2_score'],
-                                    'sent1_token_score': score['sent1_token_score'],
-                                    'sent2_token_score': score['sent2_token_score']
+                                    'score': pair_score,
+                                    'gold-direction': direction,
+                                    'gold-bias': bias
                                   }, ignore_index=True)
 
-        print(index, metric_score, df_data.shape[0])
+        print(index, stereo_score + antistereo_score, df_data.shape[0])
 
     df_score.to_csv(args.output_file)
     print('Total examples:', N)
-    print('Metric score:', round(metric_score / N * 100, 2))
+    print('Metric score:', round((stereo_score + antistereo_score) / N * 100, 2))
+    print('Stereotype score:', round(stereo_score  / total_stereo * 100, 2))
+    if antistereo_score != 0:
+        print('Anti-stereotype score:', round(antistereo_score  / total_antistereo * 100, 2))
     print("Num. neutral:", neutral, round(neutral / N * 100, 2))
 
     print('=' * 100)
