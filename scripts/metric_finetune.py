@@ -15,7 +15,7 @@ import numpy as np
 import pandas as pd
 import csv
 
-from sklearn.model_selection import KFold
+from sklearn.model_selection import KFold, train_test_split
 import torch.optim as optim
 from torch.utils.data import DataLoader, Dataset
 from torch.nn.utils import clip_grad_norm
@@ -113,8 +113,6 @@ def mask_ngram(sent1, sent2, mask_id, lm, n=1):
     mask_token = lm["mask_token"]
     uncased = lm["uncased"]
 
-    sent1, sent2 = data["sent1"], data["sent2"]
-
     if uncased:
         sent1 = sent1.lower()
         sent2 = sent2.lower()
@@ -126,6 +124,8 @@ def mask_ngram(sent1, sent2, mask_id, lm, n=1):
     template1, template2 = get_span(sent1_token_ids[0], sent2_token_ids[0])
     N = len(template1)
     
+    out = 0
+
     # random masking
     sent1_log_probs = torch.tensor([], requires_grad=True)
     sent2_log_probs = torch.tensor([], requires_grad=True)
@@ -145,10 +145,13 @@ def mask_ngram(sent1, sent2, mask_id, lm, n=1):
         _, score1 = compute_log_prob(sent1_masked_token_ids, sent1_token_ids, lm)
         _, score2 = compute_log_prob(sent2_masked_token_ids, sent2_token_ids, lm)
 
+        if score1 > score2:
+            out += 1
+
         sent1_log_probs = torch.cat((sent1_log_probs, torch.tensor([score1], requires_grad=True)), dim=0)
         sent2_log_probs = torch.cat((sent1_log_probs, torch.tensor([score2], requires_grad=True)), dim=0)
 
-    return (torch.sum(sent1_log_probs)-torch.sum(sent2_log_probs))**2
+    return (torch.sum(sent1_log_probs)-torch.sum(sent2_log_probs))**2, out
 
 
 def mask_random(sent1, sent2, mask_id, lm, T=25):
@@ -171,6 +174,8 @@ def mask_random(sent1, sent2, mask_id, lm, T=25):
     sent1_log_probs = torch.tensor([], requires_grad=True)
     sent2_log_probs = torch.tensor([], requires_grad=True)
 
+    out = 0
+
     num_masked_tokens = max(1, math.ceil(mask_prob * N))
     for t in range(T):
         masked_idx = np.random.choice(N, num_masked_tokens, replace=False)
@@ -189,10 +194,13 @@ def mask_random(sent1, sent2, mask_id, lm, T=25):
         _, score1 = compute_log_prob(sent1_masked_token_ids, sent1_token_ids, lm)
         _, score2 = compute_log_prob(sent2_masked_token_ids, sent2_token_ids, lm)
 
+        if score1 > score2:
+            out += 1
+
         sent1_log_probs = torch.cat((sent1_log_probs, torch.tensor([score1], requires_grad=True)), dim=0)
         sent2_log_probs = torch.cat((sent1_log_probs, torch.tensor([score2], requires_grad=True)), dim=0)
 
-    return (torch.sum(sent1_log_probs)-torch.sum(sent2_log_probs))**2
+    return (torch.sum(sent1_log_probs)-torch.sum(sent2_log_probs))**2, out
 
 
 def mask_predict(sent1, sent2, mask_id, lm, T=10):
@@ -215,6 +223,9 @@ def mask_predict(sent1, sent2, mask_id, lm, T=10):
     sent1_log_probs = torch.tensor([], requires_grad=True)
     sent2_log_probs = torch.tensor([], requires_grad=True)
     log_probs1, log_probs2 = torch.tensor([], requires_grad=True), torch.tensor([], requires_grad=True)
+
+    out = 0
+
     for t in range(T):
         num_unmasked_tokens = int(N - (N * ((T - t) / T)))
         masked_idx = np.random.choice(N, num_unmasked_tokens, replace=False)
@@ -246,6 +257,9 @@ def mask_predict(sent1, sent2, mask_id, lm, T=10):
         log_probs1, score1 = compute_log_prob(sent1_masked_token_ids, sent1_token_ids, lm)
         log_probs2, score2 = compute_log_prob(sent2_masked_token_ids, sent2_token_ids, lm)
 
+        if score1 > score2:
+            out += 1
+
         sent1_log_probs = torch.cat((sent1_log_probs, torch.tensor([score1], requires_grad=True)), dim=0)
         sent2_log_probs = torch.cat((sent1_log_probs, torch.tensor([score2], requires_grad=True)), dim=0)
 
@@ -253,7 +267,7 @@ def mask_predict(sent1, sent2, mask_id, lm, T=10):
         if total_unmasked_tokens == N:
             break
 
-    return (torch.sum(sent1_log_probs)-torch.sum(sent2_log_probs))**2
+    return (torch.sum(sent1_log_probs)-torch.sum(sent2_log_probs))**2, out
 
 def get_lm(lm_model):
     model = None
@@ -321,19 +335,35 @@ def get_dataloader(train_df, tokenizer, uncased, mask_token):
         sent2_list.append(sent2)
         mask_id_list.append(mask_id)
 
-    train_dataset = my_dataset(sent1_list, sent2_list, mask_id_list)
-    train_dataloader = DataLoader(
-        train_dataset,
+    dataset = my_dataset(sent1_list, sent2_list, mask_id_list)
+    dataloader = DataLoader(
+        dataset,
         batch_size=16
     )
-    return train_dataloader
+    return dataloader
 
 def batchloss(metric, sent1, sent2, mask_id, lm):
     losses = torch.tensor([], requires_grad=True)
+    batchout = 0
     for i in range(len(sent1)):
-        loss = metric(sent1[i], sent2[i], mask_id[i], lm)
+        loss, out = metric(sent1[i], sent2[i], mask_id[i], lm)
         losses = torch.cat((losses, torch.tensor([loss], requires_grad=True)), dim=0)
-    return torch.sum(losses)
+        batchout += out
+    return torch.sum(losses), batchout
+
+def print_metric_score(lm, test_dataloader, metric, desc):
+    lm['model'].eval()
+    total_out = 0
+    for batch in test_dataloader:
+        with torch.no_grad():
+            if torch.cuda.is_available():
+                device = torch.device("cuda")
+            else:
+                device = torch.device("cpu")
+            [sent1, sent2, mask_id] = batch
+            loss, batchout = batchloss(metric, sent1, sent2, mask_id, lm)
+            total_out += batchout
+    print('Metric score ' + desc + ': ' + str(total_out))
 
 
 def evaluate(args):
@@ -353,60 +383,122 @@ def evaluate(args):
     elif args.metric == "mask-random":
         metric = mask_random
 
-    kf = KFold(n_splits=6, shuffle=True)
+    train_index_all, test_index_all, _, _ = train_test_split(range(len(df_data)), range(len(df_data)), test_size=500)
+    df_train = df_data.iloc[train_index_all]
+    df_test = df_data.iloc[test_index_all]
+
+    best_epochs = 30
+    best_lr = 1e-3
+    best_loss = 10000000
+
+    kf = KFold(n_splits=5, shuffle=True)
     fold = 0
-    for train_index, test_index in kf.split(df_data):
+    for train_index, test_index in kf.split(df_train):
         print('FOLD ' + str(fold))
 
-        train_pairs = df_data.iloc[train_index]
-        test_pairs =  df_data.iloc[test_index]
+        train_pairs = df_train.iloc[train_index]
+        test_pairs =  df_train.iloc[test_index]
 
         lm = get_lm(args.lm_model)
 
         train_dataloader = get_dataloader(train_pairs, lm['tokenizer'], lm['uncased'], lm['mask_token'])
         test_dataloader = get_dataloader(test_pairs, lm['tokenizer'], lm['uncased'], lm['mask_token'])
 
-        optimizer = AdamW(lm['model'].parameters(), lr = 2e-5, eps = 1e-8)
-        epochs = 2
-        batch_size = 16
-        scheduler = get_linear_schedule_with_warmup(optimizer, num_warmup_steps=0, num_training_steps = len(train_dataloader) * epochs)
+        for lr in [1e-3, 1e-4, 1e-5]:
+            optimizer = AdamW(lm['model'].parameters(), lr=lr, eps=1e-8)
+            epochs = 30
+            scheduler = get_linear_schedule_with_warmup(optimizer, num_warmup_steps=0, num_training_steps = len(train_dataloader) * epochs)
 
-        for epoch_i in range(0, epochs):
-            print('======== Epoch {:} / {:} ========'.format(epoch_i + 1, epochs))
-            total_train_loss = 0
-            lm['model'].train()
-            for batch in train_dataloader:
-                lm['model'].zero_grad()
-                if torch.cuda.is_available():
-                    device = torch.device("cuda")
-                else:
-                    device = torch.device("cpu")
-                [sent1, sent2, mask_id] = batch
-                loss = batchloss(metric, sent1, sent2, mask_id, lm)
-                total_train_loss += loss.item()
-                loss.backward()
-                # clip_grad_norm(lm['model'].parameters(), 1.0)
-                optimizer.step()
-                scheduler.step()
-            avg_train_loss = total_train_loss / len(train_dataloader)
-            print("  Average training loss: {0:.2f}".format(avg_train_loss))
-
-            lm['model'].eval()
-            total_eval_loss = 0
-            nb_eval_steps = 0
-            for batch in test_dataloader:
-                with torch.no_grad():
+            prev_loss = 10000000
+            decrease = -1
+            for epoch_i in range(0, epochs):
+                print('======== Epoch {:} / {:} ========'.format(epoch_i + 1, epochs))
+                total_train_loss = 0
+                lm['model'].train()
+                for batch in train_dataloader:
+                    lm['model'].zero_grad()
                     if torch.cuda.is_available():
                         device = torch.device("cuda")
                     else:
                         device = torch.device("cpu")
                     [sent1, sent2, mask_id] = batch
-                    loss = batchloss(metric, sent1, sent2, mask_id, lm)
-                    total_eval_loss += loss.item()
-            avg_val_loss = total_eval_loss / len(test_dataloader)
-            print("  Validation Loss: {0:.2f}".format(avg_val_loss))
+                    loss, batchout = batchloss(metric, sent1, sent2, mask_id, lm)
+                    total_train_loss += loss.item()
+                    loss.backward()
+                    optimizer.step()
+                    scheduler.step()
+                avg_train_loss = total_train_loss / len(train_dataloader)
+                print("  Average training loss: {0:.2f}".format(avg_train_loss))
+
+                lm['model'].eval()
+                total_eval_loss = 0
+                nb_eval_steps = 0
+                total_out = 0
+                for batch in test_dataloader:
+                    with torch.no_grad():
+                        if torch.cuda.is_available():
+                            device = torch.device("cuda")
+                        else:
+                            device = torch.device("cpu")
+                        [sent1, sent2, mask_id] = batch
+                        loss, batchout = batchloss(metric, sent1, sent2, mask_id, lm)
+                        total_out += batchout
+                        total_eval_loss += loss.item()
+                avg_val_loss = total_eval_loss / len(test_dataloader)
+                print("  Validation Loss: {0:.2f}".format(avg_val_loss))
+
+                # early stopping
+                if avg_val_loss >= prev_loss:
+                        decrease += 1
+                else:
+                    decrease = 0
+                prev_loss = avg_val_loss
+                if decrease >= 5:
+                    break
+            
+            if avg_val_loss < best_loss:
+                best_loss = avg_val_loss
+                best_epochs = epoch_i
+                best_lr = lr
 
         fold += 1
+
+    # finetune lm on train data with best_epochs and best_lr
+    lm = get_lm(args.lm_model)
+    print('Best epochs: ' + str(best_epochs))
+    print('Best lr: ' + str(best_lr))
+    train_dataloader = get_dataloader(df_train, lm['tokenizer'], lm['uncased'], lm['mask_token'])
+    optimizer = AdamW(lm['model'].parameters(), lr=best_lr, eps=1e-8)
+    scheduler = get_linear_schedule_with_warmup(optimizer, num_warmup_steps=0, num_training_steps=len(train_dataloader) * best_epochs)
+    for epoch_i in range(0, best_epochs):
+        print('======== Epoch {:} / {:} ========'.format(epoch_i + 1, best_epochs))
+        total_train_loss = 0
+        lm['model'].train()
+        for batch in train_dataloader:
+            lm['model'].zero_grad()
+            if torch.cuda.is_available():
+                device = torch.device("cuda")
+            else:
+                device = torch.device("cpu")
+            [sent1, sent2, mask_id] = batch
+            loss, batchout = batchloss(metric, sent1, sent2, mask_id, lm)
+            total_train_loss += loss.item()
+            loss.backward()
+            optimizer.step()
+            scheduler.step()
+        avg_train_loss = total_train_loss / len(train_dataloader)
+        print("  Average training loss: {0:.2f}".format(avg_train_loss))
+
+
+    lm_unfinetuned = get_lm(args.lm_model)
+    test_dataloader_unfinetuned = get_dataloader(df_test, lm_unfinetuned['tokenizer'], lm_unfinetuned['uncased'], lm_unfinetuned['mask_token'])
+    print_metric_score(lm_unfinetuned, test_dataloader_unfinetuned, metric, 'before finetuning')
+
+    test_dataloader = get_dataloader(df_test, lm['tokenizer'], lm['uncased'], lm['mask_token'])
+    print_metric_score(lm, test_dataloader, metric, 'after finetuning')
+
+    # for glue
+    lm.save_pretrained('finetuned_lm')
 
 
 
