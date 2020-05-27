@@ -60,10 +60,9 @@ def compute_log_prob(masked_token_ids, token_ids, lm):
         masked_token_ids = masked_token_ids.to('cuda')
         token_ids = token_ids.to('cuda')
 
-    with torch.no_grad():
-        # get model hidden states
-        output = model(masked_token_ids)
-        hidden_states = output[0].squeeze(0)
+    # get model hidden states
+    output = model(masked_token_ids)
+    hidden_states = output[0].squeeze(0)
 
     log_probs = torch.tensor([], requires_grad=True)
     mask_id = tokenizer.convert_tokens_to_ids(mask_token)
@@ -425,13 +424,14 @@ def evaluate(args):
                     scheduler.step()
                 print("  Training loss: {0:.2f}".format(total_train_loss))
 
-                lm['model'].eval()
-                total_eval_loss = 0
-                for batch in test_dataloader:
-                    [sent1, sent2, mask_id] = batch
-                    loss, batchout = batchloss(metric, sent1, sent2, mask_id, lm)
-                    total_eval_loss += loss.item()
-                print("  Validation loss: {0:.2f}".format(total_eval_loss))
+                with torch.no_grad():
+                    lm['model'].eval()
+                    total_eval_loss = 0
+                    for batch in test_dataloader:
+                        [sent1, sent2, mask_id] = batch
+                        loss, batchout = batchloss(metric, sent1, sent2, mask_id, lm)
+                        total_eval_loss += loss.item()
+                    print("  Validation loss: {0:.2f}".format(total_eval_loss))
 
                 # early stopping
                 if total_eval_loss >= prev_loss:
