@@ -27,22 +27,22 @@ from transformers import AdamW, get_linear_schedule_with_warmup
 from collections import defaultdict
 
 
-def read_data(input_file):
+def load_data(input_file, uncased):
     """
     Load data into panda DataFrame format.
     """
     
-    df_data = pd.DataFrame(columns=['sent1', 'sent2', 'direction'])
+    df_data = pd.DataFrame(columns=['sent1', 'sent2'])
     
     with open(input_file) as f:
         reader = csv.DictReader(f)
         for row in reader:
-            if row['gold-direction'] == 'stereo':
-                df_item = {'sent1': row['disadvantaged'],
-                           'sent2': row['advantaged']}
-            else:
-                df_item = {'sent1': row['advantaged'],
-                           'sent2': row['disadvantaged']}
+            sent1, sent2 = row['sent1'], row['sent2']
+            if uncased:
+                sent1 = sent1.lower()
+                sent2 = sent2.lower()
+            df_item = {'sent1': sent1,
+                       'sent2': sent2}
             df_data = df_data.append(df_item, ignore_index=True)
 
     return df_data
@@ -56,22 +56,13 @@ def compute_log_prob(masked_token_ids, token_ids, lm):
     mask_token = lm["mask_token"]
     uncased = lm["uncased"]
 
-    if torch.cuda.is_available():
-        masked_token_ids = masked_token_ids.to('cuda')
-        token_ids = token_ids.to('cuda')
-
     # get model hidden states
     output = model(masked_token_ids)
     hidden_states = output[0].squeeze(0)
 
-
     log_probs = torch.tensor([], requires_grad=True)
     mask_id = tokenizer.convert_tokens_to_ids(mask_token)
     sum_log_probs = torch.tensor(0., requires_grad=True)
-
-    if torch.cuda.is_available():
-        log_probs = log_probs.to('cuda')
-        sum_log_probs = sum_log_probs.to('cuda')
 
     # we only need log_prob for the MASK tokens
     for i, token_id in enumerate(masked_token_ids[0]):
@@ -80,8 +71,6 @@ def compute_log_prob(masked_token_ids, token_ids, lm):
             target_id = token_ids[0][i]
             score = log_softmax(hs)[target_id]
             score_tensor = torch.tensor([score], requires_grad=True)
-            if torch.cuda.is_available():
-                score_tensor = log_probs.to('cuda')
             log_probs = torch.cat((log_probs, score_tensor), dim=0)
             sum_log_probs = torch.add(sum_log_probs, score)
 
@@ -107,7 +96,7 @@ def get_span(seq1, seq2):
     return template1, template2
 
 
-def mask_ngram(sent1, sent2, mask_id, lm, n=1):
+def mask_ngram(sent1, sent2, lm, n=1):
     """
     Score each sentence by masking one word at a time.
     The score for a sentence is the sum of log probability of each word in
@@ -118,6 +107,8 @@ def mask_ngram(sent1, sent2, mask_id, lm, n=1):
     
     tokenizer = lm["tokenizer"]
     uncased = lm["uncased"]
+    mask_token = lm["mask_token"]
+    mask_id = tokenizer.convert_tokens_to_ids(mask_token)
 
     if uncased:
         sent1 = sent1.lower()
@@ -133,9 +124,6 @@ def mask_ngram(sent1, sent2, mask_id, lm, n=1):
     # random masking
     sent1_log_probs = torch.tensor(0., requires_grad=True)
     sent2_log_probs = torch.tensor(0., requires_grad=True)
-    if torch.cuda.is_available():
-        sent1_log_probs = sent1_log_probs.to('cuda')
-        sent2_log_probs = sent2_log_probs.to('cuda')
 
     total_masked_tokens = 0
     for i in range(N):
@@ -156,137 +144,11 @@ def mask_ngram(sent1, sent2, mask_id, lm, n=1):
         sent1_log_probs = torch.add(sent1_log_probs, score1)
         sent2_log_probs = torch.add(sent2_log_probs, score2)
 
-    out = sent1_log_probs-sent2_log_probs
-    metric_out = 0
-    if out.item() > 0:
-        metric_out = 1
+    # loss = torch.nn.MSELoss(sent1_log_probs, sent2_log_probs)
+    loss = (sent1_log_probs - sent2_log_probs).pow(2)
 
-    return out**2, metric_out
+    return loss
 
-
-def mask_random(sent1, sent2, mask_id, lm, T=25):
-    """
-    Score each sentence using mask-random algorithm, following BERT masking algorithm.
-    For each iteration, we randomly masked 15% of subword tokens output by model's tokenizer.
-    T: number of iterations
-    """
-
-
-    sent1_token_ids = lm['tokenizer'].encode(sent1, return_tensors = 'pt')
-    sent2_token_ids = lm['tokenizer'].encode(sent2, return_tensors = 'pt')
-
-    template1, template2 = get_span(sent1_token_ids[0], sent2_token_ids[0])
-    N = len(template1)
-
-    mask_prob = 0.15
-    total_masked_tokens = 0
-    
-    sent1_log_probs = torch.tensor(0., requires_grad=True)
-    sent2_log_probs = torch.tensor(0., requires_grad=True)
-    if torch.cuda.is_available():
-        sent1_log_probs = sent1_log_probs.to('cuda')
-        sent2_log_probs = sent2_log_probs.to('cuda')
-
-    num_masked_tokens = max(1, math.ceil(mask_prob * N))
-    for t in range(T):
-        masked_idx = np.random.choice(N, num_masked_tokens, replace=False)
-
-        sent1_masked_token_ids = sent1_token_ids.clone()
-        sent2_masked_token_ids = sent2_token_ids.clone()
-        
-        for idx in masked_idx:
-            idx = min(len(template1)-1, idx)
-            sent1_idx = template1[idx]
-            sent2_idx = template2[idx]
-            sent1_masked_token_ids[0][sent1_idx] = mask_id
-            sent2_masked_token_ids[0][sent2_idx] = mask_id
-            total_masked_tokens += 1
-
-        _, score1 = compute_log_prob(sent1_masked_token_ids, sent1_token_ids, lm)
-        _, score2 = compute_log_prob(sent2_masked_token_ids, sent2_token_ids, lm)
-
-
-        sent1_log_probs = torch.add(sent1_log_probs, score1)
-        sent2_log_probs = torch.add(sent2_log_probs, score2)
-
-    out = sent1_log_probs-sent2_log_probs
-    metric_out = 0
-    if out.item() > 0:
-        metric_out = 1
-
-    return out**2, metric_out
-
-
-def mask_predict(sent1, sent2, mask_id, lm, T=10):
-    """
-    Score each sentence using mask-predict algorithm.
-    For each iteration, we unmask n words until all the words are unmasked.
-    T: number of iterations
-    """
-
-    sent1_token_ids = lm['tokenizer'].encode(sent1, return_tensors = 'pt')
-    sent2_token_ids = lm['tokenizer'].encode(sent2, return_tensors = 'pt')
-
-    template1, template2 = get_span(sent1_token_ids[0], sent2_token_ids[0])
-    N = len(template1)
-
-    sent1_masked_token_ids = sent1_token_ids.clone()
-    sent2_masked_token_ids = sent2_token_ids.clone()
-
-    total_unmasked_tokens = 0
-    sent1_log_probs = torch.tensor(0., requires_grad=True)
-    sent2_log_probs = torch.tensor(0., requires_grad=True)
-    log_probs1, log_probs2 = torch.tensor([], requires_grad=True), torch.tensor([], requires_grad=True)
-    if torch.cuda.is_available():
-        sent1_log_probs = sent1_log_probs.to('cuda')
-        sent2_log_probs = sent2_log_probs.to('cuda')
-        log_probs1 = log_probs1.to('cuda')
-        log_probs2 = log_probs2.to('cuda')
-
-    for t in range(T):
-        num_unmasked_tokens = int(N - (N * ((T - t) / T)))
-        masked_idx = np.random.choice(N, num_unmasked_tokens, replace=False)
-
-        if t == 0:
-            # mask all tokens except the changing words
-            for idx1, idx2 in zip(template1, template2):
-                sent1_masked_token_ids[0][idx1] = mask_id
-                sent2_masked_token_ids[0][idx2] = mask_id
-        else:
-            # sort log prob of tokens
-            sorted_log_probs1 = torch.sort(log_probs1, dim=0, descending=True)[1].tolist()[:num_unmasked_tokens]
-            sorted_log_probs2 = torch.sort(log_probs2, dim=0, descending=True)[1].tolist()[:num_unmasked_tokens]
-            # sorted_log_probs1 = sorted(log_probs1, key=lambda x: x[1], reverse=True)[:num_unmasked_tokens]
-            # sorted_log_probs2 = sorted(log_probs2, key=lambda x: x[1], reverse=True)[:num_unmasked_tokens]
-
-            # get index of the token id that has the highest log prob
-            for (idx1, _), (idx2, _) in zip(sorted_log_probs1, sorted_log_probs2):
-                # make sure it is masked before
-                # assert sent1_masked_token_ids[0][idx1].item() == mask_id
-                # assert sent2_masked_token_ids[0][idx2].item() == mask_id
-
-                # unmask the token 
-                sent1_masked_token_ids[0][idx1] = sent1_token_ids[0][idx1]
-                sent2_masked_token_ids[0][idx2] = sent2_token_ids[0][idx2]
-
-                total_unmasked_tokens += 1
-
-        log_probs1, score1 = compute_log_prob(sent1_masked_token_ids, sent1_token_ids, lm)
-        log_probs2, score2 = compute_log_prob(sent2_masked_token_ids, sent2_token_ids, lm)
-
-        sent1_log_probs = torch.add(sent1_log_probs, score1)
-        sent2_log_probs = torch.add(sent2_log_probs, score2)
-
-        # stop if all tokens already unmasked
-        if total_unmasked_tokens == N:
-            break
-
-    out = sent1_log_probs-sent2_log_probs
-    metric_out = 0
-    if out.item() > 0:
-        metric_out = 1
-
-    return out**2, metric_out
 
 def get_lm(lm_model):
     model = None
@@ -303,10 +165,6 @@ def get_lm(lm_model):
         model = AlbertForMaskedLM.from_pretrained('albert-xxlarge-v2')
         uncased = True
 
-    model.eval()
-    if torch.cuda.is_available():
-        model.to('cuda')
-
     mask_token = tokenizer.mask_token
     log_softmax = torch.nn.LogSoftmax(dim=0)
 
@@ -321,204 +179,146 @@ def get_lm(lm_model):
       "uncased": uncased
     }
 
-class my_dataset(Dataset):
-    def __init__(self, sent1_list, sent2_list, mask_id_list):
+
+class debias_dataset(Dataset):
+    def __init__(self, sent1_list, sent2_list):
         self.sent1 = sent1_list
         self.sent2 = sent2_list
-        self.mask_id = mask_id_list
 
     def __getitem__(self, index):
         return [self.sent1[index],
-                self.sent2[index],
-                self.mask_id[index]]
+                self.sent2[index]]
 
     def __len__(self):
         return len(self.sent1)
 
 
-def get_dataloader(train_df, tokenizer, uncased, mask_token):
-    sent1_list = []
-    sent2_list = []
-    mask_id_list = []
-
-    for index, row in train_df.iterrows():
-        sent1 = row['sent1']
-        sent2 = row['sent2']
-        if uncased:
-            sent1 = sent1.lower()
-            sent2 = sent2.lower()
-
-        mask_id = tokenizer.convert_tokens_to_ids(mask_token)
-
-        sent1_list.append(sent1)
-        sent2_list.append(sent2)
-        mask_id_list.append(mask_id)
-
-    dataset = my_dataset(sent1_list, sent2_list, mask_id_list)
+def get_dataloader(train_df, batch_size):
+    dataset = debias_dataset(train_df['sent1'].tolist(), train_df['sent2'].tolist())
     dataloader = DataLoader(
         dataset,
-        batch_size=16
+        batch_size=batch_size
     )
     return dataloader
 
-def batchloss(metric, sent1, sent2, mask_id, lm):
-    sum_losses = torch.tensor(0., requires_grad=True)
-    if torch.cuda.is_available():
-        sum_losses = sum_losses.to('cuda')
-    batchout = 0
+
+def compute_loss(metric, sent1, sent2, lm, bs):
+    total_loss = torch.tensor(0., requires_grad=True)
+    assert len(sent1) == len(sent2)
+   
     for i in range(len(sent1)):
-        loss, out = metric(sent1[i], sent2[i], mask_id[i], lm)
-        sum_losses = torch.add(sum_losses, loss)
-        batchout += out
-    return sum_losses, batchout
+        loss = metric(sent1[i], sent2[i], lm)
+        total_loss = torch.add(total_loss, loss)
+
+    return total_loss / bs
+
 
 def print_metric_score(lm, test_dataloader, metric, desc):
-    lm['model'].eval()
     out_positive = 0
     out_total = 0
     for batch in test_dataloader:
         with torch.no_grad():
+            lm['model'].eval()
             [sent1, sent2, mask_id] = batch
-            loss, batchout = batchloss(metric, sent1, sent2, mask_id, lm)
+            loss, batchout = compute_loss(metric, sent1, sent2, lm)
             out_positive += batchout
             out_total += len(sent1)
     print('Metric score ' + desc + ': ' + str(out_positive) + ' / ' + str(out_total) + ' = ' + str(out_positive*1.0/out_total))
 
 
-def evaluate(args):
+def fine_tune(args):
 
-    print("Input:", args.input_file)
-    print("Metric:", args.metric)
+    print("Input:", args.input_dir)
     print("Model:", args.lm_model)
     print("=" * 100)
 
     logging.basicConfig(level=logging.INFO)
 
-    df_data = read_data(args.input_file)
+    if torch.cuda.is_available():
+        torch.set_default_tensor_type('torch.cuda.FloatTensor')
 
+    lr = args.lr
     metric = mask_ngram
-    if args.metric == "mask-predict":
-        metric = mask_predict
-    elif args.metric == "mask-random":
-        metric = mask_random
-
-    train_index_all, test_index_all, _, _ = train_test_split(range(len(df_data)), range(len(df_data)), test_size=500)
-    df_train = df_data.iloc[train_index_all]
-    df_test = df_data.iloc[test_index_all]
-
-    best_epochs = 30
-    best_lr = 1e-3
-    best_loss = 10000000
-
-    kf = KFold(n_splits=5, shuffle=True)
-    fold = 0
-    for train_index, test_index in kf.split(df_train):
-        print('FOLD ' + str(fold))
-
-        train_pairs = df_train.iloc[train_index]
-        test_pairs =  df_train.iloc[test_index]
-
-        lm = get_lm(args.lm_model)
-
-        train_dataloader = get_dataloader(train_pairs, lm['tokenizer'], lm['uncased'], lm['mask_token'])
-        test_dataloader = get_dataloader(test_pairs, lm['tokenizer'], lm['uncased'], lm['mask_token'])
-
-        for lr in [1e-3, 1e-4, 1e-5]:
-            print('lr: ' + str(lr))
-            optimizer = AdamW(lm['model'].parameters(), lr=lr, eps=1e-8)
-            epochs = 30
-            scheduler = get_linear_schedule_with_warmup(optimizer, num_warmup_steps=0, num_training_steps = len(train_dataloader) * epochs)
-
-            prev_loss = 10000000
-            decrease = -1
-            for epoch_i in range(0, epochs):
-                print('Epoch {:} / {:}'.format(epoch_i + 1, epochs))
-
-                lm['model'].train()
-                total_train_loss = 0
-                for batch in train_dataloader:
-                    lm['model'].zero_grad()
-                    [sent1, sent2, mask_id] = batch
-                    loss, batchout = batchloss(metric, sent1, sent2, mask_id, lm)
-                    total_train_loss += loss.item()
-                    loss.backward()
-
-                    # import pdb
-                    # pdb.set_trace()
-                    # any([p.grad != None for name, p in lm['model'].named_parameters()])
-                    
-                    optimizer.step()
-                    scheduler.step()
-                print("  Training loss: {0:.2f}".format(total_train_loss))
-
-                lm['model'].eval()
-                total_eval_loss = 0
-                for batch in test_dataloader:
-                    [sent1, sent2, mask_id] = batch
-                    loss, batchout = batchloss(metric, sent1, sent2, mask_id, lm)
-                    total_eval_loss += loss.item()
-                print("  Validation loss: {0:.2f}".format(total_eval_loss))
-
-                # early stopping
-                if total_eval_loss >= prev_loss:
-                    decrease += 1
-                else:
-                    decrease = 0
-                prev_loss = total_eval_loss
-                if decrease >= 5:
-                    break
-            
-            # find best hyperparameters
-            if total_eval_loss < best_loss:
-                best_loss = total_eval_loss
-                best_epochs = epoch_i
-                best_lr = lr
-
-        fold += 1
-
-    # finetune lm on train data with best_epochs and best_lr
+    batch_size = args.batch_size
+    max_epochs = args.max_epochs
     lm = get_lm(args.lm_model)
-    print('Best epochs: ' + str(best_epochs))
-    print('Best lr: ' + str(best_lr))
-    train_dataloader = get_dataloader(df_train, lm['tokenizer'], lm['uncased'], lm['mask_token'])
-    optimizer = AdamW(lm['model'].parameters(), lr=best_lr, eps=1e-8)
-    scheduler = get_linear_schedule_with_warmup(optimizer, num_warmup_steps=0, num_training_steps=len(train_dataloader) * best_epochs)
-    for epoch_i in range(0, best_epochs):
-        print('Epoch {:} / {:}'.format(epoch_i + 1, best_epochs))
-        total_train_loss = 0
-        lm['model'].train()
-        for batch in train_dataloader:
-            lm['model'].zero_grad()
-            if torch.cuda.is_available():
-                device = torch.device("cuda")
-            else:
-                device = torch.device("cpu")
-            [sent1, sent2, mask_id] = batch
-            loss, batchout = batchloss(metric, sent1, sent2, mask_id, lm)
-            total_train_loss += loss.item()
-            loss.backward()
+    
+    train_file = os.path.join(args.input_dir, 'fold' + str(args.fold) + 'train.csv')
+    val_file = os.path.join(args.input_dir, 'fold' + str(args.fold) + 'val.csv')
+
+    df_train = load_data(train_file, lm['uncased'])
+    df_val = load_data(val_file, lm['uncased'])
+
+    train_dataloader = get_dataloader(df_train, batch_size)
+    val_dataloader = get_dataloader(df_val, batch_size)
+
+    model = lm['model']
+    optimizer = AdamW(model.parameters(), lr=lr, eps=1e-8)
+    num_steps = len(train_dataloader) * max_epochs
+    scheduler = get_linear_schedule_with_warmup(optimizer, num_warmup_steps=0, num_training_steps=num_steps)
+
+    prev_loss = 10000000
+    best_loss = 10000000
+    best_epoch = 0
+    decrease = -1
+    for epoch_i in range(0, max_epochs):
+        print('Epoch {:} / {:}'.format(epoch_i + 1, max_epochs))
+        total_train_loss, total_eval_loss = 0, 0
+        model.train()
+        for ibatch, batch in enumerate(train_dataloader):
+            model.zero_grad()
+            sent1, sent2 = batch
+            train_loss = compute_loss(metric, sent1, sent2, lm, batch_size)
+            total_train_loss += train_loss.item()
+            train_loss.backward()
             optimizer.step()
             scheduler.step()
-        print("  Training loss: {0:.2f}".format(total_train_loss))
+            print("  Training batch {:d} loss: {:0.2f}".format(ibatch, train_loss.item()))
 
+        with torch.no_grad():
+            model.eval()
+            total_eval_loss = 0
+            for ibatch in enumerate(val_dataloader):
+                sent1, sent2 = batch
+                eval_loss = compute_loss(metric, sent1, sent2, lm, batch_size)
+                total_eval_loss += eval_loss.item()
+                print("  Validation batch {:d} loss: {:0.2f}".format(ibatch, eval_loss.item()))
+        
+        print("Total Training loss: {:0.2f}".format(total_train_loss))
+        print("Total validation loss: {:0.2f}".format(total_eval_loss))
 
-    lm_unfinetuned = get_lm(args.lm_model)
-    test_dataloader_unfinetuned = get_dataloader(df_test, lm_unfinetuned['tokenizer'], lm_unfinetuned['uncased'], lm_unfinetuned['mask_token'])
-    print_metric_score(lm_unfinetuned, test_dataloader_unfinetuned, metric, 'before finetuning')
+        # early stopping
+        if total_eval_loss >= prev_loss:
+            decrease += 1
+        else:
+            decrease = 0
 
-    test_dataloader = get_dataloader(df_test, lm['tokenizer'], lm['uncased'], lm['mask_token'])
-    print_metric_score(lm, test_dataloader, metric, 'after finetuning')
+        prev_loss = total_eval_loss
+        if best_loss > total_eval_loss:
+            best_loss = total_eval_loss
+            best_epoch = epoch_i
+            model.save_pretrained(args.model_dir)
 
-    # for glue
-    lm['model'].save_pretrained('finetuned_lm')
-    lm['tokenizer'].save_pretrained('finetuned_lm')
+        if decrease >= 5:
+            print("Validation loss didn't go down for 5 epochs, stopping training early.")
+            print('Best epoch:', best_epoch)
+            print('Best validation loss', best_loss)
+            break
+
+    print('Best epoch:', best_epoch)
+    print('Best validation loss', best_loss)
 
 
 
 parser = argparse.ArgumentParser()
-parser.add_argument("--input_file", type=str, help="path to input file")
-parser.add_argument("--metric", type=str, help="metric for scoring (mask-random, mask-predict)")
+parser.add_argument("--input_dir", type=str, help="path to input file")
+parser.add_argument("--model_dir", type=str, default='model', help="path to store model file")
 parser.add_argument("--lm_model", type=str, help="pretrained LM model to use")
+parser.add_argument("--fold", type=int, default=0, help="validation split fold (0, 1, 2, 3, 4)")
+# hyperparameters
+parser.add_argument("--lr", type=float, default=1e-5, help="learning_rate")
+parser.add_argument("--max_epochs", type=float, default=1, help="maximum number of epochs to run")
+parser.add_argument("--batch_size", type=float, default=8, help="batch_size")
 
 args = parser.parse_args()
-evaluate(args)
+fine_tune(args)
