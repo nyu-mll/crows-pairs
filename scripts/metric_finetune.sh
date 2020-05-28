@@ -23,13 +23,13 @@ pip install --user tensorflow_datasets
 mkdir /home/rvb255/glue_out
 mkdir /home/rvb255/superglue_out
 
-python metric_finetune.py --input_file data/filtered_lmBias_data.csv --metric mask-ngram --lm_model roberta
+python metric_finetune.py --input_file data/filtered_lmBias_data.csv --metric mask-ngram --lm_model bert
 
 cd transformers/examples/glue
 python3 ../../utils/download_glue_data.py --data_dir /home/rvb255/glue_data
 export PYTHONPATH="../":"${PYTHONPATH}"
 python3 run_pl_glue.py --data_dir /home/rvb255/glue_data \
-	--model_type roberta \
+	--model_type bert \
 	--task mrpc \
 	--model_name_or_path home/rvb255/finetuned_lm \
 	--output_dir /home/rvb255/glue_out \
@@ -43,15 +43,15 @@ python3 run_pl_glue.py --data_dir /home/rvb255/glue_data \
 # ./run_pl.sh
 
 cd /home/rvb255/transformers/examples
-python run_superglue.py --data_dir /home/rvb255/superglue_data --model_type roberta --model_name_or_path /home/rvb255/finetuned_lm --output_dir /home/rvb255/superglue_out --task_name ax-b
-python run_superglue.py --data_dir /home/rvb255/superglue_data --model_type roberta --model_name_or_path /home/rvb255/finetuned_lm --output_dir /home/rvb255/superglue_out --task_name ax-g
-python run_superglue.py --data_dir /home/rvb255/superglue_data --model_type roberta --model_name_or_path /home/rvb255/finetuned_lm --output_dir /home/rvb255/superglue_out --task_name boolq
-python run_superglue.py --data_dir /home/rvb255/superglue_data --model_type roberta --model_name_or_path /home/rvb255/finetuned_lm --output_dir /home/rvb255/superglue_out --task_name cb
-python run_superglue.py --data_dir /home/rvb255/superglue_data --model_type roberta --model_name_or_path /home/rvb255/finetuned_lm --output_dir /home/rvb255/superglue_out --task_name copa
-python run_superglue.py --data_dir /home/rvb255/superglue_data --model_type roberta --model_name_or_path /home/rvb255/finetuned_lm --output_dir /home/rvb255/superglue_out --task_name multirc
-python run_superglue.py --data_dir /home/rvb255/superglue_data --model_type roberta --model_name_or_path /home/rvb255/finetuned_lm --output_dir /home/rvb255/superglue_out --task_name record
-python run_superglue.py --data_dir /home/rvb255/superglue_data --model_type roberta --model_name_or_path /home/rvb255/finetuned_lm --output_dir /home/rvb255/superglue_out --task_name rte
-python run_superglue.py --data_dir /home/rvb255/superglue_data --model_type roberta --model_name_or_path /home/rvb255/finetuned_lm --output_dir /home/rvb255/superglue_out --task_name wic
-python run_superglue.py --data_dir /home/rvb255/superglue_data --model_type roberta --model_name_or_path /home/rvb255/finetuned_lm --output_dir /home/rvb255/superglue_out --task_name wsc
+python run_superglue.py --data_dir /home/rvb255/superglue_data --model_type bert --model_name_or_path /home/rvb255/finetuned_lm --output_dir /home/rvb255/superglue_out --do_lower_case --task_name ax-b
+python run_superglue.py --data_dir /home/rvb255/superglue_data --model_type bert --model_name_or_path /home/rvb255/finetuned_lm --output_dir /home/rvb255/superglue_out --do_lower_case --task_name ax-g
+python run_superglue.py --data_dir /home/rvb255/superglue_data --model_type bert --model_name_or_path /home/rvb255/finetuned_lm --output_dir /home/rvb255/superglue_out --do_lower_case --task_name boolq
+python run_superglue.py --data_dir /home/rvb255/superglue_data --model_type bert --model_name_or_path /home/rvb255/finetuned_lm --output_dir /home/rvb255/superglue_out --do_lower_case --task_name cb
+python run_superglue.py --data_dir /home/rvb255/superglue_data --model_type bert --model_name_or_path /home/rvb255/finetuned_lm --output_dir /home/rvb255/superglue_out --do_lower_case --task_name copa
+python run_superglue.py --data_dir /home/rvb255/superglue_data --model_type bert --model_name_or_path /home/rvb255/finetuned_lm --output_dir /home/rvb255/superglue_out --do_lower_case --task_name multirc
+python run_superglue.py --data_dir /home/rvb255/superglue_data --model_type bert --model_name_or_path /home/rvb255/finetuned_lm --output_dir /home/rvb255/superglue_out --do_lower_case --task_name record
+python run_superglue.py --data_dir /home/rvb255/superglue_data --model_type bert --model_name_or_path /home/rvb255/finetuned_lm --output_dir /home/rvb255/superglue_out --do_lower_case --task_name rte
+python run_superglue.py --data_dir /home/rvb255/superglue_data --model_type bert --model_name_or_path /home/rvb255/finetuned_lm --output_dir /home/rvb255/superglue_out --do_lower_case --task_name wic
+python run_superglue.py --data_dir /home/rvb255/superglue_data --model_type bert --model_name_or_path /home/rvb255/finetuned_lm --output_dir /home/rvb255/superglue_out --do_lower_case --task_name wsc
 # flag --do_lower_case for bert and albert
 

@@ -363,6 +363,8 @@ def get_dataloader(train_df, tokenizer, uncased, mask_token):
 
 def batchloss(metric, sent1, sent2, mask_id, lm):
     sum_losses = torch.tensor(0., requires_grad=True)
+    if torch.cuda.is_available():
+        sum_losses = sum_losses.to('cuda')
     batchout = 0
     for i in range(len(sent1)):
         loss, out = metric(sent1[i], sent2[i], mask_id[i], lm)
