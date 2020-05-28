@@ -84,12 +84,6 @@ def compute_log_prob(masked_token_ids, token_ids, lm):
                 score_tensor = log_probs.to('cuda')
             log_probs = torch.cat((log_probs, score_tensor), dim=0)
             sum_log_probs = torch.add(sum_log_probs, score)
-            
-            # import pdb
-            # pdb.set_trace()
-            # out = sum_log_probs
-            # out.backward(retain_graph=True)
-            # # any([p.grad != None for name, p in lm['model'].named_parameters()])
 
     return log_probs, sum_log_probs
 
@@ -446,6 +440,11 @@ def evaluate(args):
                     loss, batchout = batchloss(metric, sent1, sent2, mask_id, lm)
                     total_train_loss += loss.item()
                     loss.backward()
+
+                    import pdb
+                    pdb.set_trace()
+                    # any([p.grad != None for name, p in lm['model'].named_parameters()])
+                    
                     optimizer.step()
                     scheduler.step()
                 print("  Training loss: {0:.2f}".format(total_train_loss))
