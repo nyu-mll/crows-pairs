@@ -64,8 +64,14 @@ def compute_log_prob(masked_token_ids, token_ids, lm):
     output = model(masked_token_ids)
     hidden_states = output[0].squeeze(0)
 
+
     log_probs = torch.tensor([], requires_grad=True)
     mask_id = tokenizer.convert_tokens_to_ids(mask_token)
+    sum_log_probs = torch.tensor(0., requires_grad=True)
+
+    if torch.cuda.is_available():
+        log_probs = log_probs.to('cuda')
+        sum_log_probs = sum_log_probs.to('cuda')
 
     # we only need log_prob for the MASK tokens
     for i, token_id in enumerate(masked_token_ids[0]):
@@ -73,10 +79,19 @@ def compute_log_prob(masked_token_ids, token_ids, lm):
             hs = hidden_states[i]
             target_id = token_ids[0][i]
             score = log_softmax(hs)[target_id]
-            log_probs = torch.cat((log_probs, torch.tensor([score], requires_grad=True)), dim=0)
-            # sum_log_probs += log_softmax(hs)[target_id].item()
+            score_tensor = torch.tensor([score], requires_grad=True)
+            if torch.cuda.is_available():
+                score_tensor = log_probs.to('cuda')
+            log_probs = torch.cat((log_probs, score_tensor), dim=0)
+            sum_log_probs = torch.add(sum_log_probs, score)
+            
+            # import pdb
+            # pdb.set_trace()
+            # out = sum_log_probs
+            # out.backward(retain_graph=True)
+            # # any([p.grad != None for name, p in lm['model'].named_parameters()])
 
-    return log_probs, torch.sum(log_probs)
+    return log_probs, sum_log_probs
 
 
 def get_span(seq1, seq2):
@@ -106,10 +121,8 @@ def mask_ngram(sent1, sent2, mask_id, lm, n=1):
     n = n-gram of token that is masked, if n > 1, we mask tokens with overlapping
     n-grams.
     """
-    model = lm["model"]
+    
     tokenizer = lm["tokenizer"]
-    log_softmax = lm["log_softmax"]
-    mask_token = lm["mask_token"]
     uncased = lm["uncased"]
 
     if uncased:
@@ -124,8 +137,12 @@ def mask_ngram(sent1, sent2, mask_id, lm, n=1):
     N = len(template1)
 
     # random masking
-    sent1_log_probs = torch.tensor([], requires_grad=True)
-    sent2_log_probs = torch.tensor([], requires_grad=True)
+    sent1_log_probs = torch.tensor(0., requires_grad=True)
+    sent2_log_probs = torch.tensor(0., requires_grad=True)
+    if torch.cuda.is_available():
+        sent1_log_probs = sent1_log_probs.to('cuda')
+        sent2_log_probs = sent2_log_probs.to('cuda')
+
     total_masked_tokens = 0
     for i in range(N):
         sent1_masked_token_ids = sent1_token_ids.clone()
@@ -142,10 +159,10 @@ def mask_ngram(sent1, sent2, mask_id, lm, n=1):
         _, score1 = compute_log_prob(sent1_masked_token_ids, sent1_token_ids, lm)
         _, score2 = compute_log_prob(sent2_masked_token_ids, sent2_token_ids, lm)
 
-        sent1_log_probs = torch.cat((sent1_log_probs, torch.tensor([score1], requires_grad=True)), dim=0)
-        sent2_log_probs = torch.cat((sent1_log_probs, torch.tensor([score2], requires_grad=True)), dim=0)
+        sent1_log_probs = torch.add(sent1_log_probs, score1)
+        sent2_log_probs = torch.add(sent2_log_probs, score2)
 
-    out = torch.sum(sent1_log_probs)-torch.sum(sent2_log_probs)
+    out = sent1_log_probs-sent2_log_probs
     metric_out = 0
     if out.item() > 0:
         metric_out = 1
@@ -170,8 +187,11 @@ def mask_random(sent1, sent2, mask_id, lm, T=25):
     mask_prob = 0.15
     total_masked_tokens = 0
     
-    sent1_log_probs = torch.tensor([], requires_grad=True)
-    sent2_log_probs = torch.tensor([], requires_grad=True)
+    sent1_log_probs = torch.tensor(0., requires_grad=True)
+    sent2_log_probs = torch.tensor(0., requires_grad=True)
+    if torch.cuda.is_available():
+        sent1_log_probs = sent1_log_probs.to('cuda')
+        sent2_log_probs = sent2_log_probs.to('cuda')
 
     num_masked_tokens = max(1, math.ceil(mask_prob * N))
     for t in range(T):
@@ -191,10 +211,11 @@ def mask_random(sent1, sent2, mask_id, lm, T=25):
         _, score1 = compute_log_prob(sent1_masked_token_ids, sent1_token_ids, lm)
         _, score2 = compute_log_prob(sent2_masked_token_ids, sent2_token_ids, lm)
 
-        sent1_log_probs = torch.cat((sent1_log_probs, torch.tensor([score1], requires_grad=True)), dim=0)
-        sent2_log_probs = torch.cat((sent1_log_probs, torch.tensor([score2], requires_grad=True)), dim=0)
 
-    out = torch.sum(sent1_log_probs)-torch.sum(sent2_log_probs)
+        sent1_log_probs = torch.add(sent1_log_probs, score1)
+        sent2_log_probs = torch.add(sent2_log_probs, score2)
+
+    out = sent1_log_probs-sent2_log_probs
     metric_out = 0
     if out.item() > 0:
         metric_out = 1
@@ -219,9 +240,14 @@ def mask_predict(sent1, sent2, mask_id, lm, T=10):
     sent2_masked_token_ids = sent2_token_ids.clone()
 
     total_unmasked_tokens = 0
-    sent1_log_probs = torch.tensor([], requires_grad=True)
-    sent2_log_probs = torch.tensor([], requires_grad=True)
+    sent1_log_probs = torch.tensor(0., requires_grad=True)
+    sent2_log_probs = torch.tensor(0., requires_grad=True)
     log_probs1, log_probs2 = torch.tensor([], requires_grad=True), torch.tensor([], requires_grad=True)
+    if torch.cuda.is_available():
+        sent1_log_probs = sent1_log_probs.to('cuda')
+        sent2_log_probs = sent2_log_probs.to('cuda')
+        log_probs1 = log_probs1.to('cuda')
+        log_probs2 = log_probs2.to('cuda')
 
     for t in range(T):
         num_unmasked_tokens = int(N - (N * ((T - t) / T)))
@@ -254,14 +280,14 @@ def mask_predict(sent1, sent2, mask_id, lm, T=10):
         log_probs1, score1 = compute_log_prob(sent1_masked_token_ids, sent1_token_ids, lm)
         log_probs2, score2 = compute_log_prob(sent2_masked_token_ids, sent2_token_ids, lm)
 
-        sent1_log_probs = torch.cat((sent1_log_probs, torch.tensor([score1], requires_grad=True)), dim=0)
-        sent2_log_probs = torch.cat((sent1_log_probs, torch.tensor([score2], requires_grad=True)), dim=0)
+        sent1_log_probs = torch.add(sent1_log_probs, score1)
+        sent2_log_probs = torch.add(sent2_log_probs, score2)
 
         # stop if all tokens already unmasked
         if total_unmasked_tokens == N:
             break
 
-    out = torch.sum(sent1_log_probs)-torch.sum(sent2_log_probs)
+    out = sent1_log_probs-sent2_log_probs
     metric_out = 0
     if out.item() > 0:
         metric_out = 1
@@ -342,13 +368,13 @@ def get_dataloader(train_df, tokenizer, uncased, mask_token):
     return dataloader
 
 def batchloss(metric, sent1, sent2, mask_id, lm):
-    losses = torch.tensor([], requires_grad=True)
+    sum_losses = torch.tensor(0., requires_grad=True)
     batchout = 0
     for i in range(len(sent1)):
         loss, out = metric(sent1[i], sent2[i], mask_id[i], lm)
-        losses = torch.cat((losses, torch.tensor([loss], requires_grad=True)), dim=0)
+        sum_losses = torch.add(sum_losses, loss)
         batchout += out
-    return torch.sum(losses), batchout
+    return sum_losses, batchout
 
 def print_metric_score(lm, test_dataloader, metric, desc):
     lm['model'].eval()

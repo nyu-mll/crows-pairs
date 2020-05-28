@@ -36,3 +36,4 @@ python run_superglue.py --data_dir /home/rvb255/superglue_data --model_type robe
 
 
 # sbatch --mail-user=rvb255@nyu.edu --mail-type=ALL --mem=8GB --gres=gpu:1 --time="7-0" metric_finetune.sh
+# srun --gres=gpu:1 --mem=8GB --pty /bin/bash
