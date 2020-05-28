@@ -1,7 +1,8 @@
 #!/bin/bash
 
-# Make sure glue data is in /home/rvb255/glue_data
 # Make sure superglue data is in /home/rvb255/superglue_data
+# You will want to replace all "/home/rvb255" with your current directory
+# Run this using: sbatch --mail-user=rvb255@nyu.edu --mail-type=ALL --mem=8GB --gres=gpu:1 --time="7-0" metric_finetune.sh
 
 module load python3/intel/3.7.3
 pip install --user scikit-learn
@@ -25,6 +26,7 @@ mkdir /home/rvb255/superglue_out
 python metric_finetune.py --input_file data/filtered_lmBias_data.csv --metric mask-ngram --lm_model roberta
 
 cd transformers/examples/glue
+python3 ../../utils/download_glue_data.py --data_dir /home/rvb255/glue_data
 export PYTHONPATH="../":"${PYTHONPATH}"
 python3 run_pl_glue.py --data_dir /home/rvb255/glue_data \
 	--model_type roberta \
@@ -52,20 +54,4 @@ python run_superglue.py --data_dir /home/rvb255/superglue_data --model_type robe
 python run_superglue.py --data_dir /home/rvb255/superglue_data --model_type roberta --model_name_or_path /home/rvb255/finetuned_lm --output_dir /home/rvb255/superglue_out --task_name wic
 python run_superglue.py --data_dir /home/rvb255/superglue_data --model_type roberta --model_name_or_path /home/rvb255/finetuned_lm --output_dir /home/rvb255/superglue_out --task_name wsc
 # flag --do_lower_case for bert and albert
-
-# python metric_finetune.py --input_file data/filtered_lmBias_data.csv --metric mask-random --lm_model bert
-# python metric_finetune.py --input_file data/filtered_lmBias_data.csv --metric mask-predict --lm_model bert
-# python metric_finetune.py --input_file data/filtered_lmBias_data.csv --metric mask-ngram --lm_model bert
-
-# python metric_finetune.py --input_file data/filtered_lmBias_data.csv --metric mask-random --lm_model roberta
-# python metric_finetune.py --input_file data/filtered_lmBias_data.csv --metric mask-predict --lm_model roberta
-# python metric_finetune.py --input_file data/filtered_lmBias_data.csv --metric mask-ngram --lm_model roberta
-
-# python metric_finetune.py --input_file data/filtered_lmBias_data.csv --metric mask-random --lm_model albert
-# python metric_finetune.py --input_file data/filtered_lmBias_data.csv --metric mask-predict --lm_model albert
-# python metric_finetune.py --input_file data/filtered_lmBias_data.csv --metric mask-ngram --lm_model albert
-
-
-# sbatch --mail-user=rvb255@nyu.edu --mail-type=ALL --mem=8GB --gres=gpu:1 --time="7-0" metric_finetune.sh
-# srun --gres=gpu:1 --mem=8GB --pty /bin/bash
 
