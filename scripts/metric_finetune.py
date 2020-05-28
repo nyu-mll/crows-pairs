@@ -449,14 +449,13 @@ def evaluate(args):
                     scheduler.step()
                 print("  Training loss: {0:.2f}".format(total_train_loss))
 
-                with torch.no_grad():
-                    lm['model'].eval()
-                    total_eval_loss = 0
-                    for batch in test_dataloader:
-                        [sent1, sent2, mask_id] = batch
-                        loss, batchout = batchloss(metric, sent1, sent2, mask_id, lm)
-                        total_eval_loss += loss.item()
-                    print("  Validation loss: {0:.2f}".format(total_eval_loss))
+                lm['model'].eval()
+                total_eval_loss = 0
+                for batch in test_dataloader:
+                    [sent1, sent2, mask_id] = batch
+                    loss, batchout = batchloss(metric, sent1, sent2, mask_id, lm)
+                    total_eval_loss += loss.item()
+                print("  Validation loss: {0:.2f}".format(total_eval_loss))
 
                 # early stopping
                 if total_eval_loss >= prev_loss:
