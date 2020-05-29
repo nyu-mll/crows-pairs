@@ -305,7 +305,7 @@ def fine_tune(args):
         if best_loss > total_eval_loss:
             best_loss = total_eval_loss
             best_epoch = epoch_i
-            model.save_pretrained(args.model_dir)
+            model.save_pretrained(model_dir)
 
         if decrease >= 5:
             log.write("Validation loss didn't go down for 5 epochs, stopping training early.\n")
