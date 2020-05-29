@@ -258,7 +258,7 @@ def fine_tune(args):
     decrease = -1
     for epoch_i in range(0, max_epochs):
         print('Epoch {:} / {:}'.format(epoch_i + 1, max_epochs))
-        log.write('Epoch {:} / {:}'.format(epoch_i + 1, max_epochs))
+        log.write('Epoch {:} / {:}\n'.format(epoch_i + 1, max_epochs))
         total_train_loss, total_eval_loss = 0, 0
         model.train()
         for ibatch, train_batch in enumerate(train_dataloader):
