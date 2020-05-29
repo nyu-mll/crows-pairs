@@ -278,9 +278,6 @@ def fine_tune(args):
             print("  Training batch {:d} loss: {:0.2f}".format(ibatch, train_loss.item()))
             log.flush()
 
-            if ibatch == 5:
-                break
-
         with torch.no_grad():
             model.eval()
             total_eval_loss = 0
