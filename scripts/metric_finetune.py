@@ -5,6 +5,7 @@ import torch
 import argparse
 import difflib
 import logging
+import shutil
 import numpy as np
 import pandas as pd
 import csv
@@ -218,7 +219,7 @@ def fine_tune(args):
 
     model_dir = 'models/model_' + str(args.fold) + '_' + str(args.lr)
     if os.path.exists(model_dir):
-        shutil.rmtree()
+        shutil.rmtree(model_dir)
     os.mkdir(model_dir)
 
     log = open(os.path.join(model_dir, 'log.log'), 'w')
