@@ -1,9 +1,3 @@
-# To run:
-# python metric.py --input_file [path_file] --metric [metric] --lm_model [model]
-# input_file is path to input as CSV
-# metric: options are {mask-random, mask-predict}
-# model: options are {bert, roberta, albert}
-
 import os
 import json
 import math
@@ -48,7 +42,7 @@ def load_data(input_file, uncased):
     return df_data
 
 
-def compute_log_prob(masked_token_ids, token_ids, lm):
+def compute_log_prob(masked_token_ids, token_ids, mask_idx, lm):
     
     model = lm["model"]
     tokenizer = lm["tokenizer"]
@@ -59,22 +53,16 @@ def compute_log_prob(masked_token_ids, token_ids, lm):
     # get model hidden states
     output = model(masked_token_ids)
     hidden_states = output[0].squeeze(0)
-
-    log_probs = torch.tensor([], requires_grad=True)
     mask_id = tokenizer.convert_tokens_to_ids(mask_token)
-    sum_log_probs = torch.tensor(0., requires_grad=True)
 
     # we only need log_prob for the MASK tokens
-    for i, token_id in enumerate(masked_token_ids[0]):
-        if token_id.item() == mask_id:
-            hs = hidden_states[i]
-            target_id = token_ids[0][i]
-            score = log_softmax(hs)[target_id]
-            score_tensor = torch.tensor([score], requires_grad=True)
-            log_probs = torch.cat((log_probs, score_tensor), dim=0)
-            sum_log_probs = torch.add(sum_log_probs, score)
+    assert masked_token_ids[0][mask_idx] == mask_id
 
-    return log_probs, sum_log_probs
+    hs = hidden_states[mask_idx]
+    target_id = token_ids[0][mask_idx]
+    log_probs = log_softmax(hs)[target_id]
+
+    return log_probs
 
 
 def get_span(seq1, seq2):
@@ -126,7 +114,8 @@ def mask_ngram(sent1, sent2, lm, n=1):
     sent2_log_probs = torch.tensor(0., requires_grad=True)
 
     total_masked_tokens = 0
-    for i in range(N):
+    # we skip mask for [CSL] and [SEP]
+    for i in range(1, N-1):
         sent1_masked_token_ids = sent1_token_ids.clone()
         sent2_masked_token_ids = sent2_token_ids.clone()
 
@@ -138,13 +127,12 @@ def mask_ngram(sent1, sent2, lm, n=1):
             sent2_masked_token_ids[0][template2[j]] = mask_id
             total_masked_tokens += 1
 
-        _, score1 = compute_log_prob(sent1_masked_token_ids, sent1_token_ids, lm)
-        _, score2 = compute_log_prob(sent2_masked_token_ids, sent2_token_ids, lm)
+        score1 = compute_log_prob(sent1_masked_token_ids, sent1_token_ids, template1[j], lm)
+        score2 = compute_log_prob(sent2_masked_token_ids, sent2_token_ids, template2[j], lm)
 
         sent1_log_probs = torch.add(sent1_log_probs, score1)
         sent2_log_probs = torch.add(sent2_log_probs, score2)
 
-    # loss = torch.nn.MSELoss(sent1_log_probs, sent2_log_probs)
     loss = (sent1_log_probs - sent2_log_probs).pow(2)
 
     return loss
@@ -202,35 +190,39 @@ def get_dataloader(train_df, batch_size):
     return dataloader
 
 
-def compute_loss(metric, sent1, sent2, lm, bs):
+def compute_loss(sent1, sent2, lm, bs):
     total_loss = torch.tensor(0., requires_grad=True)
     assert len(sent1) == len(sent2)
    
     for i in range(len(sent1)):
-        loss = metric(sent1[i], sent2[i], lm)
+        loss = mask_ngram(sent1[i], sent2[i], lm)
         total_loss = torch.add(total_loss, loss)
 
     return total_loss / bs
 
 
-def print_metric_score(lm, test_dataloader, metric, desc):
-    out_positive = 0
-    out_total = 0
-    for batch in test_dataloader:
-        with torch.no_grad():
-            lm['model'].eval()
-            [sent1, sent2, mask_id] = batch
-            loss, batchout = compute_loss(metric, sent1, sent2, lm)
-            out_positive += batchout
-            out_total += len(sent1)
-    print('Metric score ' + desc + ': ' + str(out_positive) + ' / ' + str(out_total) + ' = ' + str(out_positive*1.0/out_total))
+def get_initial_loss(dataloader, lm, bs):
+
+    model = lm['model']
+    total_eval_loss = 0
+    with torch.no_grad():
+        model.eval()
+        for ibatch, batch in enumerate(dataloader):
+            sent1, sent2 = batch
+            eval_loss = compute_loss(sent1, sent2, lm, bs)
+            total_eval_loss += eval_loss.item()
+
+    return total_eval_loss
 
 
 def fine_tune(args):
 
-    print("Input:", args.input_dir)
-    print("Model:", args.lm_model)
-    print("=" * 100)
+    log = open(os.path.join(args.model_dir, 'log.log'), 'w')
+
+    log.write('Configurations:\n')
+    for k, v in vars(args).items():
+        log.write(str(k) + ': ' + str(v) + '\n')
+        print(k, v)
 
     logging.basicConfig(level=logging.INFO)
 
@@ -238,7 +230,6 @@ def fine_tune(args):
         torch.set_default_tensor_type('torch.cuda.FloatTensor')
 
     lr = args.lr
-    metric = mask_ngram
     batch_size = args.batch_size
     max_epochs = args.max_epochs
     lm = get_lm(args.lm_model)
@@ -257,35 +248,50 @@ def fine_tune(args):
     num_steps = len(train_dataloader) * max_epochs
     scheduler = get_linear_schedule_with_warmup(optimizer, num_warmup_steps=0, num_training_steps=num_steps)
 
+    initial_loss = get_initial_loss(val_dataloader, lm, batch_size)
+    print('Initial validation loss: ' + str(initial_loss) + '\n')
+    log.write('Initial validation loss: ' + str(initial_loss) + '\n')
+
     prev_loss = 10000000
     best_loss = 10000000
     best_epoch = 0
     decrease = -1
     for epoch_i in range(0, max_epochs):
         print('Epoch {:} / {:}'.format(epoch_i + 1, max_epochs))
+        log.write('Epoch {:} / {:}'.format(epoch_i + 1, max_epochs))
         total_train_loss, total_eval_loss = 0, 0
         model.train()
-        for ibatch, batch in enumerate(train_dataloader):
+        for ibatch, train_batch in enumerate(train_dataloader):
             model.zero_grad()
-            sent1, sent2 = batch
-            train_loss = compute_loss(metric, sent1, sent2, lm, batch_size)
+            sent1, sent2 = train_batch
+            train_loss = compute_loss(sent1, sent2, lm, batch_size)
             total_train_loss += train_loss.item()
             train_loss.backward()
             optimizer.step()
             scheduler.step()
+            log.write("  Training batch {:d} loss: {:0.2f}\n".format(ibatch, train_loss.item()))
             print("  Training batch {:d} loss: {:0.2f}".format(ibatch, train_loss.item()))
+            log.flush()
+
+            if ibatch == 5:
+                break
 
         with torch.no_grad():
             model.eval()
             total_eval_loss = 0
-            for ibatch in enumerate(val_dataloader):
-                sent1, sent2 = batch
-                eval_loss = compute_loss(metric, sent1, sent2, lm, batch_size)
+            for ibatch, eval_batch in enumerate(val_dataloader):
+                sent1, sent2 = eval_batch
+                eval_loss = compute_loss(sent1, sent2, lm, batch_size)
                 total_eval_loss += eval_loss.item()
+                log.write("  Validation batch {:d} loss: {:0.2f}\n".format(ibatch, eval_loss.item()))
                 print("  Validation batch {:d} loss: {:0.2f}".format(ibatch, eval_loss.item()))
+                log.flush()
         
+        log.write("Total Training loss: {:0.2f}\n".format(total_train_loss))
+        log.write("Total validation loss: {:0.2f}\n".format(total_eval_loss))
         print("Total Training loss: {:0.2f}".format(total_train_loss))
         print("Total validation loss: {:0.2f}".format(total_eval_loss))
+        log.flush()
 
         # early stopping
         if total_eval_loss >= prev_loss:
@@ -300,15 +306,17 @@ def fine_tune(args):
             model.save_pretrained(args.model_dir)
 
         if decrease >= 5:
-            print("Validation loss didn't go down for 5 epochs, stopping training early.")
-            print('Best epoch:', best_epoch)
-            print('Best validation loss', best_loss)
+            log.write("Validation loss didn't go down for 5 epochs, stopping training early.\n")
+            log.write('Best epoch:' + str(best_epoch) + '\n')
+            log.write('Best validation loss' + str(best_loss) + '\n')
+            log.close()
             break
 
-    print('Best epoch:', best_epoch)
-    print('Best validation loss', best_loss)
-
-
+    log.write('Best epoch:' + str(best_epoch) + '\n')
+    log.write('Best validation loss' + str(best_loss) + '\n')
+    print('Best epoch:' + str(best_epoch))
+    print('Best validation loss' + str(best_loss))
+    log.close()
 
 parser = argparse.ArgumentParser()
 parser.add_argument("--input_dir", type=str, help="path to input file")
@@ -317,8 +325,8 @@ parser.add_argument("--lm_model", type=str, help="pretrained LM model to use")
 parser.add_argument("--fold", type=int, default=0, help="validation split fold (0, 1, 2, 3, 4)")
 # hyperparameters
 parser.add_argument("--lr", type=float, default=1e-5, help="learning_rate")
-parser.add_argument("--max_epochs", type=float, default=1, help="maximum number of epochs to run")
-parser.add_argument("--batch_size", type=float, default=8, help="batch_size")
+parser.add_argument("--max_epochs", type=int, default=1, help="maximum number of epochs to run")
+parser.add_argument("--batch_size", type=int, default=8, help="batch_size")
 
 args = parser.parse_args()
 fine_tune(args)
