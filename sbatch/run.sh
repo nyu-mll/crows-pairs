@@ -1,7 +1,7 @@
 #!/bin/bash
 #SBATCH --job-name=lm-bias
 #SBATCH --output=/scratch/cv50/nlu-debiasing-data/log/finetune-%j.out
-#SBATCH --error=/scratch/cv50/nlu-debiasing-data/log/finetune-%j.out
+#SBATCH --error=/scratch/cv50/nlu-debiasing-data/log/finetune-%j.err
 #SBATCH --gres=gpu:p40:1
 #SBATCH --time=48:00:00
 #SBATCH --mem=30000

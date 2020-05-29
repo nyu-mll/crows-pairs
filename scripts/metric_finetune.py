@@ -216,9 +216,9 @@ def get_initial_loss(dataloader, lm, bs):
 
 def fine_tune(args):
 
-    model_dir = 'model_' + str(args.fold) + '_' + str(args.lr)
+    model_dir = 'models/model_' + str(args.fold) + '_' + str(args.lr)
     if os.path.exists(model_dir):
-        os.rmdir(model_dir)
+        shutil.rmtree()
     os.mkdir(model_dir)
 
     log = open(os.path.join(model_dir, 'log.log'), 'w')
