@@ -10,6 +10,6 @@
 #SBATCH --mail-type=END,FAIL
 
 
-source activate jiant
+source activate nlu-bias
 
-python scripts/metric_finetune.py --input_dir data/cross-val --lm_model bert --max_epochs 10 --fold 0 --lr 0.001 
+python scripts/metric_finetune.py --input_dir data/cross-val --lm_model bert --max_epochs 10 --fold 0 --lr 0.001

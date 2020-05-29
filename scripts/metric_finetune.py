@@ -9,7 +9,6 @@ import numpy as np
 import pandas as pd
 import csv
 
-from sklearn.model_selection import KFold, train_test_split
 import torch.optim as optim
 from torch.utils.data import DataLoader, Dataset
 from torch.nn.utils import clip_grad_norm
@@ -217,12 +216,12 @@ def get_initial_loss(dataloader, lm, bs):
 
 def fine_tune(args):
 
-    model_dir = 'model_' + str(args.fold) + '_' + (args.lr)
+    model_dir = 'model_' + str(args.fold) + '_' + str(args.lr)
     if os.path.exists(model_dir):
         os.rmdir(model_dir)
     os.mkdir(model_dir)
 
-    log = open(os.path.join(args.model_dir, 'log.log'), 'w')
+    log = open(os.path.join(model_dir, 'log.log'), 'w')
 
     log.write('Configurations:\n')
     for k, v in vars(args).items():
@@ -322,7 +321,6 @@ def fine_tune(args):
 
 parser = argparse.ArgumentParser()
 parser.add_argument("--input_dir", type=str, help="path to input file")
-parser.add_argument("--model_dir", type=str, default='model', help="path to store model file")
 parser.add_argument("--lm_model", type=str, help="pretrained LM model to use")
 parser.add_argument("--fold", type=int, default=0, help="validation split fold (0, 1, 2, 3, 4)")
 # hyperparameters
