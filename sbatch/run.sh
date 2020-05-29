@@ -12,4 +12,6 @@
 
 source activate nlu-bias
 
-python scripts/metric_finetune.py --input_dir data/cross-val --lm_model roberta --max_epochs 10 --fold 0 --lr 0.001
+# usage example for fold0 and lr=1e-3:
+# sbatch sbatch/run.sh 0 1e-3
+python scripts/metric_finetune.py --input_dir data/cross-val --lm_model roberta --max_epochs 10 --fold $1 --lr $2
