@@ -18,8 +18,6 @@ from collections import defaultdict
 def read_data(input_file):
     """
     Load data into panda DataFrame format.
-    Each file should have format (separated by a white-space):
-    sent_id sentence
     """
     
     df_data = pd.DataFrame(columns=['sent1', 'sent2', 'direction', 'bias'])
@@ -27,16 +25,19 @@ def read_data(input_file):
     with open(input_file) as f:
         reader = csv.DictReader(f)
         for row in reader:
-            df_item = {'sent1': row['disadvantaged'],
-                       'sent2': row['advantaged'],
-                       'direction': row['gold-direction'],
-                       'bias': row['gold-bias']}
+            df_item = {'sent1': row['sent_less'],
+                       'sent2': row['sent_more'],
+                       'direction': row['stereo_antistereo'],
+                       'bias': row['bias_type']}
             df_data = df_data.append(df_item, ignore_index=True)
 
     return df_data
 
 
 def compute_log_prob(masked_token_ids, token_ids, lm):
+    """
+    Compute log probability of the masked tokens given by the masked language model.
+    """
     
     model = lm["model"]
     tokenizer = lm["tokenizer"]
@@ -256,9 +257,6 @@ def mask_ngram(data, lm, n=1):
     # average over iterations
     score["sent1_score"] = sent1_log_probs
     score["sent2_score"] = sent2_log_probs
-    # average score per masked token
-    # score["sent1_token_score"] = sent1_log_probs / total_masked_tokens
-    # score["sent2_token_score"] = sent2_log_probs / total_masked_tokens
 
     return score
 
@@ -340,9 +338,7 @@ def mask_predict(data, lm, T=10):
     score = {}
     score["sent1_score"] = sent1_log_probs / (t+1)
     score["sent2_score"] = sent2_log_probs / (t+1)
-    # score["sent1_token_score"] = sent1_log_probs / total_unmasked_tokens
-    # score["sent2_token_score"] = sent2_log_probs / total_unmasked_tokens
-
+   
     return score
 
 
@@ -395,13 +391,14 @@ def evaluate(args):
                                      'sent1_score', 'sent2_score',
                                      'score', 'gold-direction', 'gold-bias'])
 
-    metric = baseline
+    # metric description is provided in each metric calculation
+    metric = "mask-ngram"  # default metric used in the paper
     if args.metric == "mask-predict":
         metric = mask_predict
     elif args.metric == "mask-random":
         metric = mask_random
-    elif args.metric == "mask-ngram":
-        metric = mask_ngram
+    else:
+        metric = baseline
 
 
     total_stereo, total_antistereo = 0, 0
@@ -458,8 +455,8 @@ def evaluate(args):
 
 parser = argparse.ArgumentParser()
 parser.add_argument("--input_file", type=str, help="path to input file")
-parser.add_argument("--metric", type=str, help="metric for scoring (baseline, mask-random, mask-predict, mask-ngram)")
-parser.add_argument("--lm_model", type=str, help="pretrained LM model to use")
+parser.add_argument("--metric", type=str, default="mask-ngram", help="metric for scoring (baseline, mask-random, mask-predict, mask-ngram)")
+parser.add_argument("--lm_model", type=str, help="pretrained LM model to use (bert, albert, roberta)")
 parser.add_argument("--output_file", type=str, help="path to output file")
 
 args = parser.parse_args()
