@@ -4,7 +4,7 @@ This is the Github repo for CrowS-Pairs, a challenge dataset for measuring the d
 
 ## The Dataset
 
-The dataset along with its annotations is in [crows_pairs_anonymized.csv](https://github.com/nyu-mll/nlu-debiasing-data/blob/public/data/crows_pairs_anonymized.csv). It consists of 1,508 examples covering nine types of biases: ace, gender/gender identity, sexual orientation, religion, age, nationality, disability, physical appearance, and socioeconomic status.
+The dataset along with its annotations is in [crows_pairs_anonymized.csv](https://github.com/nyu-mll/nlu-debiasing-data/blob/public/data/crows_pairs_anonymized.csv). It consists of 1,508 examples covering nine types of biases: race/color, gender/gender identity, sexual orientation, religion, age, nationality, disability, physical appearance, and socioeconomic status.
 
 Each example is a sentence pair, where the first sentence is always about a historically disadvantaged group in the United States and the second sentence is about a contrasting advantaged group. The first sentence can _demonstrate_ or _violate_ a stereotype. The other sentence is a minimal edit of the first sentence: The only words that change between them are those that identify the group. Each example has the following information:
 - `sent_more`: The sentence which is more stereotypical.
