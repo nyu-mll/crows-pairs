@@ -57,7 +57,8 @@ If you use CrowS-Pairs or our metric in your work, please cite it directly:
     month = nov,
     year = "2020",
     address = "Online",
-    publisher = "Association for Computational Linguistics",
+    publisher = "Association for Computational Linguistics"
+}
 ```
 
 
