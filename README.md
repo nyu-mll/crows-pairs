@@ -38,7 +38,7 @@ The `--output_file` will store the sentence scores for each example. It will cre
 
 - `sent_more_score`: sentence score for `sent_more`
 - `sent_less_score`: sentence score for `sent_less`
-- `score`: binary score, indicating whether the model is biased towards the more stereotypical sentence (1) or not.
+- `score`: binary score, indicating whether the model is biased towards the more stereotypical sentence (`1`) or not (`0`).
 
 Please refer to the paper on how we calculate the sentence score.
 
