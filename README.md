@@ -48,7 +48,7 @@ If you use CrowS-Pairs or our metric in your work, please cite it directly:
 
 ```
 @inproceedings{nangia2020crows,
-    title = "{CrowS-Pairs: A Challenge Dataset for Measuring Social Biases\\ in Masked Language Models}",
+    title = "{CrowS-Pairs: A Challenge Dataset for Measuring Social Biases in Masked Language Models}",
     author = "Nangia, Nikita  and
       Vania, Clara  and
       Bhalerao, Rasika  and
