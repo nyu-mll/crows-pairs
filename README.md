@@ -34,30 +34,13 @@ python scripts/metric.py
 ```
 For `mlm_name`, the code supports `bert`, `roberta`, and `albert`.
 
-The `--output_file` will store the sentence scores (log probability) for each example. It will create a new CSV (or overwrite one with the same name) with columns:
+The `--output_file` will store the sentence scores for each example. It will create a new CSV (or overwrite one with the same name) with columns `sent_more, sent_less, stereo_antistereo, bias_type` taken from the input, and additional columns:
 
-- `sent_more`
-- `sent_less`
-- `sent_more_score`
-- `sent_less_score`
-- `score`
-- `stereo_antistereo`
-- `bias_type`
+- `sent_more_score`: sentence score for `sent_more`
+- `sent_less_score`: sentence score for `sent_less`
+- `score`: binary score, indicating whether the model is biased towards the more stereotypical sentence (1) or not.
 
-
-## Data Statements
-
-CrowS-Pairs is a crowdsourced dataset created to be used as a challenge set for measuring the degree to which U.S. stereotypical biases are present in large pretrained masked language models such as [BERT](https://www.aclweb.org/anthology/N19-1423/). The dataset consists of 1,508 examples that cover stereotypes dealing with nine type of social bias. 
-
-Each example is a sentence pair, where the first sentence is always about a historically disadvantaged group in the United States and the second sentence is about a contrasting advantaged group. The first sentence can _demonstrate_ or _violate_ a stereotype. The other sentence is a minimal edit of the first sentence: The only words that change between them are those that identify the group. 
-
-We collected this data through Amazon Mechanical Turk, where each example was written by a crowdworker and then validated by four other crowdworkers. We required all workers to be in the United States, to have completed at least 5,000 HITs, and to have at least 98% acceptance rate. Workers were paid a $15 hourly wage.
-
-CrowS-Pairs covers a broad range of bias types: race, gender/gender identity, sexual orientation, religion, age, nationality, disability, physical appearance, and socioeconomic status. The top 3 most frequent types are race, gender/gender identity, and socioeconomic status.
-
-The data presented in this paper is of a sensitive nature. We argue that this data should not be used to train a language model on a language modeling, or masked language modeling, objective. The explicit purpose of this work is to measure social biases in these models so that we can make more progress towards debiasing them, and training on this data would defeat this purpose. 
-
-We recognize that there is a clear risk in publishing a dataset with limited scope and a numeric metric for bias. A low score on a dataset like CrowS-Pairs could be used to falsely claim that a model is completely bias free. We strongly caution against this. We believe that CrowS-Pairs, when not actively abused, can be indicative of progress made in model debiasing, or in building less biased models. It is not, however, an assurance that a model is truly unbiased.
+Please refer to the paper on how we calculate the sentence score.
 
 
 
