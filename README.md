@@ -32,7 +32,17 @@ python scripts/metric.py
 	--lm_model [mlm_name] 
 	--output_file [output_filename]
 ```
-For `mlm_name`, the code supports `bert`, `roberta`, and `albert`. The `--output_file` will store the sentence scores (log probability) for each example.
+For `mlm_name`, the code supports `bert`, `roberta`, and `albert`.
+
+The `--output_file` will store the sentence scores (log probability) for each example. It will create a new CSV (or overwrite one with the same name) with columns:
+
+- `sent_more`
+- `sent_less`
+- `sent_more_score`
+- `sent_less_score`
+- `score`
+- `stereo_antistereo`
+- `bias_type`
 
 
 ## Data Statements
