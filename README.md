@@ -42,6 +42,10 @@ The `--output_file` will store the sentence scores for each example. It will cre
 
 Please refer to the paper on how we calculate the sentence score.
 
+## License
+
+CrowS-Pairs is licensed under a [Creative Commons Attribution-ShareAlike 4.0 International License][https://creativecommons.org/licenses/by-sa/4.0/]. It is created using prompts taken from the [ROCStories corpora][https://cs.rochester.edu/nlp/rocstories/] and the fiction part of [MNLI][https://cims.nyu.edu/~sbowman/multinli/]. Please refer to their papers for more details.
+
 ## Reference
 
 If you use CrowS-Pairs or our metric in your work, please cite it directly:
