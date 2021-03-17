@@ -27,7 +27,7 @@ pip install -r requirements.txt
 
 The code for measuring stereotypical biases in MLMs is available at [metric.py](https://github.com/nyu-mll/nlu-debiasing-data/blob/public/scripts/metric.py). You can run the code using the following command:
 ```
-python scripts/metric.py 
+python metric.py 
 	--input_file data/crows_pairs_anonymized.csv 
 	--lm_model [mlm_name] 
 	--output_file [output_filename]
