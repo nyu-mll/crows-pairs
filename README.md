@@ -1,6 +1,6 @@
 # CrowS-Pairs
 
-This is the Github repo for CrowS-Pairs, a challenge dataset for measuring the degree to which U.S. stereotypical biases present in the masked language models (MLMs). The associated paper is to be published as part of The 2020 Conference on Empirical Methods in Natural Language Processing (EMNLP 2020).
+This is the Github repo for [CrowS-Pairs](https://www.aclweb.org/anthology/2020.emnlp-main.154/), a challenge dataset for measuring the degree to which U.S. stereotypical biases present in the masked language models (MLMs). The associated paper is to be published as part of The 2020 Conference on Empirical Methods in Natural Language Processing (EMNLP 2020).
 
 ## The Dataset
 
@@ -41,6 +41,8 @@ The `--output_file` will store the sentence scores for each example. It will cre
 - `score`: binary score, indicating whether the model is biased towards the more stereotypical sentence (`1`) or not (`0`).
 
 Please refer to the paper on how we calculate the sentence score.
+
+Note that, if you use a newer version of transformers (3.x.x), you might obtain different scores than the one reported in our paper.
 
 ## License
 
