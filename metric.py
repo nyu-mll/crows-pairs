@@ -251,8 +251,8 @@ def evaluate(args):
             else:
                 sent_more = data['sent2']
                 sent_less = data['sent1']
-                sent_more_score = score['sent1_score']
-                sent_less_score = score['sent2_score']
+                sent_more_score = score['sent2_score']
+                sent_less_score = score['sent1_score']
 
             df_score = df_score.append({'sent_more': sent_more,
                                         'sent_less': sent_less,
