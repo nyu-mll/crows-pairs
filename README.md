@@ -2,7 +2,7 @@
 
 This is the Github repo for [CrowS-Pairs](https://www.aclweb.org/anthology/2020.emnlp-main.154/), a challenge dataset for measuring the degree to which U.S. stereotypical biases present in the masked language models (MLMs). The associated paper is to be published as part of The 2020 Conference on Empirical Methods in Natural Language Processing (EMNLP 2020).
 
-**Please note that recent work by [Blodgett et al. (2021)](https://www.microsoft.com/en-us/research/uploads/prod/2021/06/The_Salmon_paper.pdf) has found significant issues with noise and reliability of the data in CrowS-Pairs. The problems are significant enough that CrowS-Pairs may not be a good indicator of the presence of social biases in LMs. Please refer to the Blodgett et al. paper for details.**
+**Data reliability: Please note that recent work by [Blodgett et al. (2021)](https://www.microsoft.com/en-us/research/uploads/prod/2021/06/The_Salmon_paper.pdf) has found significant issues with noise and reliability of the data in CrowS-Pairs. The problems are significant enough that CrowS-Pairs may not be a good indicator of the presence of social biases in LMs. Please refer to the Blodgett et al. paper for details.**
 
 ## The Dataset
 
