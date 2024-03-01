@@ -23,6 +23,8 @@ def read_data(input_file):
     
     df_data = pd.DataFrame(columns=['sent1', 'sent2', 'direction', 'bias_type'])
 
+    list_data = []
+
     with open(input_file) as f:
         reader = csv.DictReader(f)
         for row in reader:
@@ -42,7 +44,8 @@ def read_data(input_file):
                        'sent2': sent2,
                        'direction': direction,
                        'bias_type': bias_type}
-            df_data = df_data.append(df_item, ignore_index=True)
+            list_data.append(df_item)
+    df_data = pd.DataFrame.from_records(list_data)
 
     return df_data
 
